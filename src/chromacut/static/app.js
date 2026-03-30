@@ -35,6 +35,7 @@
     const keyColorHex = $('#key-color-hex');
     const detectMode = $('#detect-mode');
     const beforeAfterBadge = $('#before-after-badge');
+    const loadingOverlay = $('#loading-overlay');
 
     // ---- Tab switching ----
     $$('.tab').forEach(tab => {
@@ -204,6 +205,9 @@
     async function analyzeImage() {
         if (!sourceFile) return;
 
+        loadingOverlay.classList.remove('hidden');
+        exportStatus.textContent = '';
+
         const form = new FormData();
         form.append('file', sourceFile);
 
@@ -216,6 +220,8 @@
             updatePreview();
         } catch (err) {
             exportStatus.textContent = 'Analysis failed: ' + err.message;
+        } finally {
+            loadingOverlay.classList.add('hidden');
         }
     }
 
