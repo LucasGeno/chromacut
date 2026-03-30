@@ -96,20 +96,40 @@ def detect_grid(
 
     # If no gaps found wide enough for grid, treat as single
     if len(col_groups) <= 1 and len(row_groups) <= 1:
-        # Find tight content bounds
-        content_cols = np.where(col_key_pct < 0.9)[0]
-        content_rows = np.where(row_key_pct < 0.9)[0]
-        if len(content_cols) > 0 and len(content_rows) > 0:
-            return [Cell(0, int(content_cols[0]), int(content_rows[0]),
-                        int(content_cols[-1] - content_cols[0] + 1),
-                        int(content_rows[-1] - content_rows[0] + 1))]
+        # Use pixel-level scan for precise single-icon bounds
+        non_key = ~key_mask
+        content_rows_mask = np.any(non_key, axis=1)
+        content_cols_mask = np.any(non_key, axis=0)
+        content_rows_idx = np.where(content_rows_mask)[0]
+        content_cols_idx = np.where(content_cols_mask)[0]
+        if len(content_rows_idx) > 0 and len(content_cols_idx) > 0:
+            return [Cell(0, int(content_cols_idx[0]), int(content_rows_idx[0]),
+                        int(content_cols_idx[-1] - content_cols_idx[0] + 1),
+                        int(content_rows_idx[-1] - content_rows_idx[0] + 1))]
         return [Cell(0, 0, 0, w, h)]
 
     cells = []
     idx = 0
     for ri, (ry1, ry2) in enumerate(row_groups):
         for ci, (cx1, cx2) in enumerate(col_groups):
-            cells.append(Cell(idx, cx1, ry1, cx2 - cx1, ry2 - ry1))
+            # Expand cell bounds to capture all non-key pixels within this region.
+            # The band detection (0.9 threshold) finds the grid structure,
+            # but actual content may extend into sparser areas.
+            region = key_mask[ry1:ry2, cx1:cx2]
+            non_key_region = ~region
+            r_rows = np.any(non_key_region, axis=1)
+            r_cols = np.any(non_key_region, axis=0)
+            r_row_idx = np.where(r_rows)[0]
+            r_col_idx = np.where(r_cols)[0]
+            if len(r_row_idx) > 0 and len(r_col_idx) > 0:
+                # Tight bounds within the cell region
+                cy = ry1 + int(r_row_idx[0])
+                cx = cx1 + int(r_col_idx[0])
+                cw = int(r_col_idx[-1] - r_col_idx[0] + 1)
+                ch = int(r_row_idx[-1] - r_row_idx[0] + 1)
+                cells.append(Cell(idx, cx, cy, cw, ch))
+            else:
+                cells.append(Cell(idx, cx1, ry1, cx2 - cx1, ry2 - ry1))
             idx += 1
 
     # Filter out cells that are too small (likely label strips or noise)
