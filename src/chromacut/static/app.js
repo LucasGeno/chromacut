@@ -34,6 +34,7 @@
     const keyColorSwatch = $('#key-color-swatch');
     const keyColorHex = $('#key-color-hex');
     const detectMode = $('#detect-mode');
+    const beforeAfterBadge = $('#before-after-badge');
 
     // ---- Tab switching ----
     $$('.tab').forEach(tab => {
@@ -96,6 +97,54 @@
         paddingValue.textContent = paddingSlider.value + '%';
         updatePreview();
     });
+
+    // ---- Before/after toggle (hold Space) ----
+    let _showingOriginal = false;
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.repeat && sourceImage && analysisData && _lastSourceCrop) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            _showingOriginal = true;
+            beforeAfterBadge.classList.remove('hidden');
+            showOriginalInPreview();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' && _showingOriginal) {
+            e.preventDefault();
+            _showingOriginal = false;
+            beforeAfterBadge.classList.add('hidden');
+            updatePreview();
+        }
+    });
+
+    function showOriginalInPreview() {
+        if (!_lastSourceCrop || !sourceImage) return;
+        const { x, y, w, h } = _lastSourceCrop;
+
+        const panel = resultCanvas.parentElement;
+        const sizeBtn = $('[data-setting="output_size"] button.active');
+        const outputSize = parseInt(sizeBtn?.dataset.value || '512');
+        const displayScale = Math.min(
+            (panel.clientWidth - 8) / outputSize,
+            (panel.clientHeight - 8) / outputSize,
+            1
+        );
+        const displaySize = Math.round(outputSize * displayScale);
+
+        resultCanvas.width = displaySize;
+        resultCanvas.height = displaySize;
+        const ctx = resultCanvas.getContext('2d');
+        ctx.clearRect(0, 0, displaySize, displaySize);
+
+        const scale = Math.min(displaySize / w, displaySize / h) * 0.85;
+        const sw = Math.round(w * scale);
+        const sh = Math.round(h * scale);
+        ctx.drawImage(sourceImage, x, y, w, h,
+                     (displaySize - sw) / 2, (displaySize - sh) / 2, sw, sh);
+    }
 
     // ---- Export ----
     btnExport.addEventListener('click', doExport);
