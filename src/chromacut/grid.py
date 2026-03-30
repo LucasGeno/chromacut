@@ -89,8 +89,10 @@ def detect_grid(
     row_key_pct = key_mask.mean(axis=1)
 
     # Find column gaps (vertical bands of key color)
-    col_groups = _find_content_bands(col_key_pct < 0.7, min_col_gap)
-    row_groups = _find_content_bands(row_key_pct < 0.7, min_row_gap)
+    # Threshold 0.9: a column is "content" if >10% of pixels are non-key.
+    # This handles icons that don't fill the full vertical space.
+    col_groups = _find_content_bands(col_key_pct < 0.9, min_col_gap)
+    row_groups = _find_content_bands(row_key_pct < 0.9, min_row_gap)
 
     # If no gaps found wide enough for grid, treat as single
     if len(col_groups) <= 1 and len(row_groups) <= 1:

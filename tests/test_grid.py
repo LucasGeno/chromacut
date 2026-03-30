@@ -121,6 +121,19 @@ def test_gemini_grid_4x2_detection():
         assert c["w"] > 50 and c["h"] > 50, f"Cell {c['index']} too small: {c['w']}x{c['h']}"
 
 
+def test_gemini_grid_3x1b_detection():
+    """Second 3x1 grid variant (server/cloud/bicycle) with smaller icons."""
+    fixture = Path(__file__).parent / "fixtures" / "gemini-grid-3x1-b.png"
+    if not fixture.exists():
+        pytest.skip("Gemini 3x1-b fixture not provided yet")
+    img = Image.open(fixture)
+    result = analyze_image(img)
+    assert result["mode"] == "grid"
+    assert len(result["cells"]) == 3, f"Expected 3 cells, got {len(result['cells'])}"
+    for c in result["cells"]:
+        assert c["w"] > 50 and c["h"] > 50, f"Cell {c['index']} too small: {c['w']}x{c['h']}"
+
+
 def test_gemini_grid_cells_dont_overlap():
     """Grid cells should not overlap."""
     fixture = Path(__file__).parent / "fixtures" / "gemini-grid-3x1.png"
