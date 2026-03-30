@@ -2,6 +2,7 @@
 
 import io
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -16,8 +17,18 @@ from chromacut.grid import analyze_image
 
 STATIC_DIR = Path(__file__).parent / "static"
 GUIDES_DIR = Path(__file__).parent / "guides"
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 app = FastAPI(title="chromacut")
+
+
+def _sanitize_name(name: str) -> str:
+    """Sanitize a user-provided filename to prevent path traversal."""
+    # Strip path separators and parent-directory components
+    name = name.replace("/", "").replace("\\", "")
+    name = re.sub(r"\.\.+", "", name)
+    name = name.strip(". ")
+    return name or "icon"
 
 # Serve static files (CSS, JS)
 if STATIC_DIR.exists():
@@ -38,16 +49,32 @@ async def index():
 @app.post("/api/analyze")
 async def analyze(file: UploadFile = File(...)):
     contents = await file.read()
-    img = Image.open(io.BytesIO(contents))
+    if len(contents) > MAX_UPLOAD_BYTES:
+        return JSONResponse({"error": "File too large (max 50 MB)"}, status_code=413)
+    try:
+        img = Image.open(io.BytesIO(contents))
+        img.load()
+    except Exception:
+        return JSONResponse({"error": "Invalid image file"}, status_code=400)
     result = analyze_image(img)
     return JSONResponse(result)
 
 
 @app.post("/api/extract")
 async def extract(file: UploadFile = File(...), settings: str = Form(...)):
-    config = json.loads(settings)
+    try:
+        config = json.loads(settings)
+    except (json.JSONDecodeError, TypeError):
+        return JSONResponse({"error": "Invalid settings JSON"}, status_code=400)
+
     contents = await file.read()
-    img = Image.open(io.BytesIO(contents)).convert("RGBA")
+    if len(contents) > MAX_UPLOAD_BYTES:
+        return JSONResponse({"error": "File too large (max 50 MB)"}, status_code=413)
+    try:
+        img = Image.open(io.BytesIO(contents)).convert("RGBA")
+        img.load()
+    except Exception:
+        return JSONResponse({"error": "Invalid image file"}, status_code=400)
 
     output_size = config.get("output_size", 512)
     padding = config.get("padding", 0.15)
@@ -64,7 +91,7 @@ async def extract(file: UploadFile = File(...), settings: str = Form(...)):
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for cell_req in cells:
             idx = cell_req["index"]
-            name = cell_req.get("name", f"icon-{idx}")
+            name = _sanitize_name(cell_req.get("name", f"icon-{idx}"))
             cell_info = analyzed_cells.get(idx)
 
             if cell_info:

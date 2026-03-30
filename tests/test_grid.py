@@ -62,3 +62,16 @@ def test_analyze_image_full_pipeline():
     assert "cells" in result
     assert "key_color" in result
     assert "content_height" in result
+
+
+def test_single_icon_bbox_includes_full_extent():
+    """Regression: single-icon bbox should not lose 1px from width/height."""
+    arr = np.zeros((100, 100, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+    arr[20:80, 20:80] = [128, 128, 128, 255]  # 60x60 subject
+    img = Image.fromarray(arr, "RGBA")
+    cells = detect_grid(img, key_color=(0, 255, 0), content_height=100)
+    assert len(cells) == 1
+    cell = cells[0]
+    assert cell.w == 60, f"Expected width 60, got {cell.w}"
+    assert cell.h == 60, f"Expected height 60, got {cell.h}"

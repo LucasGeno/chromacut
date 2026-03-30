@@ -73,3 +73,40 @@ def test_guides_endpoint():
     assert resp.status_code == 200
     data = resp.json()
     assert "html" in data
+
+
+def test_extract_sanitizes_traversal_names():
+    """Path traversal in icon names must be stripped from zip entries."""
+    buf = _make_test_image()
+    settings = json.dumps({
+        "cells": [{"index": 0, "name": "../../../etc/owned"}],
+        "output_size": 64,
+        "padding": 0.1,
+        "art_style": "pixel",
+    })
+    resp = client.post(
+        "/api/extract",
+        files={"file": ("test.png", buf, "image/png")},
+        data={"settings": settings},
+    )
+    assert resp.status_code == 200
+    z = zipfile.ZipFile(io.BytesIO(resp.content))
+    for name in z.namelist():
+        assert ".." not in name, f"Zip entry contains traversal: {name}"
+        assert "/" not in name, f"Zip entry contains path separator: {name}"
+
+
+def test_analyze_invalid_image_returns_400():
+    buf = io.BytesIO(b"not an image at all")
+    resp = client.post("/api/analyze", files={"file": ("bad.png", buf, "image/png")})
+    assert resp.status_code == 400
+
+
+def test_extract_invalid_settings_returns_400():
+    buf = _make_test_image()
+    resp = client.post(
+        "/api/extract",
+        files={"file": ("test.png", buf, "image/png")},
+        data={"settings": "not json{{{"},
+    )
+    assert resp.status_code == 400

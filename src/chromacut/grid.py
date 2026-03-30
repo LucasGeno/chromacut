@@ -99,8 +99,8 @@ def detect_grid(
         content_rows = np.where(row_key_pct < 0.9)[0]
         if len(content_cols) > 0 and len(content_rows) > 0:
             return [Cell(0, int(content_cols[0]), int(content_rows[0]),
-                        int(content_cols[-1] - content_cols[0]),
-                        int(content_rows[-1] - content_rows[0]))]
+                        int(content_cols[-1] - content_cols[0] + 1),
+                        int(content_rows[-1] - content_rows[0] + 1))]
         return [Cell(0, 0, 0, w, h)]
 
     cells = []

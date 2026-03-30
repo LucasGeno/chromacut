@@ -1,9 +1,18 @@
 """CLI entry point for chromacut."""
 
 import argparse
+import re
 import sys
 import webbrowser
 from pathlib import Path
+
+
+def _sanitize_name(name: str) -> str:
+    """Sanitize a user-provided filename to prevent path traversal."""
+    name = name.replace("/", "").replace("\\", "")
+    name = re.sub(r"\.\.+", "", name)
+    name = name.strip(". ")
+    return name or "icon"
 
 
 def main():
@@ -70,7 +79,8 @@ def _run_extract(args):
         cropped = src.crop((0, 0, src.width, content_h))
         processed = despill_extract(cropped)
         result = pad_and_resize(processed, args.size, args.padding, resample)
-        out_path = output_dir / f"{args.name}.png"
+        safe_name = _sanitize_name(args.name)
+        out_path = output_dir / f"{safe_name}.png"
         result.save(out_path)
         print(f"Extracted: {out_path} ({result.size[0]}x{result.size[1]})")
     else:
@@ -79,15 +89,24 @@ def _run_extract(args):
         rows = [row.split(",") for row in args.grid.split(";")]
         names = [n.strip() for row in rows for n in row if n.strip() and n.strip() != "_"]
 
+        n_cells = len(analysis["cells"])
+        if len(names) < n_cells:
+            print(f"Warning: {n_cells} cells detected but only {len(names)} names provided. "
+                  f"Extra cells will be skipped.", file=sys.stderr)
+        elif len(names) > n_cells:
+            print(f"Warning: {len(names)} names provided but only {n_cells} cells detected. "
+                  f"Extra names will be ignored.", file=sys.stderr)
+
         count = 0
         for cell, name in zip(analysis["cells"], names):
+            safe_name = _sanitize_name(name)
             cropped = src.crop((cell["x"], cell["y"],
                                cell["x"] + cell["w"], cell["y"] + cell["h"]))
             processed = despill_extract(cropped)
             result = pad_and_resize(processed, args.size, args.padding, resample)
-            out_path = output_dir / f"{name}.png"
+            out_path = output_dir / f"{safe_name}.png"
             result.save(out_path)
-            print(f"  {name}.png ({result.size[0]}x{result.size[1]})")
+            print(f"  {safe_name}.png ({result.size[0]}x{result.size[1]})")
             count += 1
 
         print(f"\nDone — {count} icons extracted to {output_dir}")
