@@ -11,6 +11,7 @@
     let sourceImage = null;   // HTMLImageElement
     let analysisData = null;  // response from /api/analyze
     let selectedCell = 0;
+    let _lastSourceCrop = null;  // for before/after toggle
 
     // ---- DOM refs ----
     const $ = (sel) => document.querySelector(sel);
@@ -287,30 +288,88 @@
         });
     }
 
-    // ---- Canvas preview (client-side green removal) ----
+    // ---- Canvas preview (client-side pipeline simulation) ----
     function updatePreview() {
         if (!sourceImage || !analysisData) return;
 
         const cell = analysisData.cells[selectedCell] || analysisData.cells[0];
         if (!cell) return;
 
-        // Draw the selected cell onto result canvas
+        // Step 1: Draw cell at full resolution into an offscreen canvas
+        const offscreen = document.createElement('canvas');
+        offscreen.width = cell.w;
+        offscreen.height = cell.h;
+        const offCtx = offscreen.getContext('2d');
+        offCtx.drawImage(sourceImage, cell.x, cell.y, cell.w, cell.h, 0, 0, cell.w, cell.h);
+
+        // Step 2: Quick green removal
+        quickGreenRemove(offCtx, cell.w, cell.h);
+
+        // Step 3: Find tight bounding box of visible pixels
+        const imgData = offCtx.getImageData(0, 0, cell.w, cell.h);
+        const d = imgData.data;
+        let minX = cell.w, minY = cell.h, maxX = 0, maxY = 0;
+        for (let y = 0; y < cell.h; y++) {
+            for (let x = 0; x < cell.w; x++) {
+                if (d[(y * cell.w + x) * 4 + 3] > 10) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX <= minX || maxY <= minY) {
+            _lastSourceCrop = null;
+            return;
+        }
+
+        const cropW = maxX - minX + 1;
+        const cropH = maxY - minY + 1;
+
+        // Step 4: Get current settings
+        const paddingPct = parseInt(paddingSlider.value) / 100;
+        const sizeBtn = $('[data-setting="output_size"] button.active');
+        const outputSize = parseInt(sizeBtn?.dataset.value || '512');
+
+        // Step 5: Calculate padded canvas layout
+        const innerSize = outputSize * (1 - paddingPct);
+        const scale = Math.min(innerSize / cropW, innerSize / cropH);
+        const scaledW = Math.round(cropW * scale);
+        const scaledH = Math.round(cropH * scale);
+
+        // Step 6: Render onto the result canvas
         const panel = resultCanvas.parentElement;
-        const maxW = panel.clientWidth - 8;
-        const maxH = panel.clientHeight - 8;
-        const scale = Math.min(maxW / cell.w, maxH / cell.h, 1);
-        const w = Math.round(cell.w * scale);
-        const h = Math.round(cell.h * scale);
+        const displayScale = Math.min(
+            (panel.clientWidth - 8) / outputSize,
+            (panel.clientHeight - 8) / outputSize,
+            1
+        );
+        const displaySize = Math.round(outputSize * displayScale);
 
-        resultCanvas.width = w;
-        resultCanvas.height = h;
-
+        resultCanvas.width = displaySize;
+        resultCanvas.height = displaySize;
         const ctx = resultCanvas.getContext('2d');
-        ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(sourceImage, cell.x, cell.y, cell.w, cell.h, 0, 0, w, h);
+        ctx.clearRect(0, 0, displaySize, displaySize);
 
-        // Client-side quick green removal for preview
-        quickGreenRemove(ctx, w, h);
+        // Scale everything to display size
+        const dScale = displaySize / outputSize;
+        const dScaledW = Math.round(scaledW * dScale);
+        const dScaledH = Math.round(scaledH * dScale);
+        const dx = Math.round((displaySize - dScaledW) / 2);
+        const dy = Math.round((displaySize - dScaledH) / 2);
+
+        // Use nearest-neighbor for pixel art, smooth for illustrated
+        const styleBtn = $('[data-setting="art_style"] button.active');
+        const artStyle = styleBtn?.dataset.value || 'pixel';
+        ctx.imageSmoothingEnabled = (artStyle !== 'pixel');
+
+        // Draw the tight-cropped content centered with padding
+        ctx.drawImage(offscreen, minX, minY, cropW, cropH, dx, dy, dScaledW, dScaledH);
+
+        // Store the source crop for before/after toggle
+        _lastSourceCrop = { x: cell.x + minX, y: cell.y + minY, w: cropW, h: cropH };
     }
 
     // ---- Quick green removal (Canvas API) ----
