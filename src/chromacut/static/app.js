@@ -262,22 +262,22 @@
             const h = cell.h * scaleY;
 
             if (i === selectedCell) {
-                ctx.strokeStyle = '#00DDFF';
+                ctx.strokeStyle = '#FF2D9B';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([]);
             } else if (i === hovered) {
-                ctx.strokeStyle = '#00DDFFCC';
+                ctx.strokeStyle = '#FF2D9BCC';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([]);
             } else {
-                ctx.strokeStyle = '#00DDFF88';
+                ctx.strokeStyle = '#FF2D9B88';
                 ctx.lineWidth = 1;
                 ctx.setLineDash([6, 3]);
             }
             ctx.strokeRect(x, y, w, h);
 
             ctx.setLineDash([]);
-            ctx.fillStyle = i === selectedCell ? '#00DDFF' : (i === hovered ? '#00DDFFCC' : '#00DDFF88');
+            ctx.fillStyle = i === selectedCell ? '#FF2D9B' : (i === hovered ? '#FF2D9BCC' : '#FF2D9B88');
             ctx.font = '11px "DM Mono", monospace';
             ctx.fillText(i + 1, x + 4, y + 14);
         });
