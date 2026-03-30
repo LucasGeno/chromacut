@@ -45,7 +45,7 @@ def detect_key_color(img: Image.Image, sample_size: int = 16) -> tuple[int, int,
     return (int(median[0]), int(median[1]), int(median[2]))
 
 
-def _is_key_color(pixels: np.ndarray, key_color: tuple[int, int, int], tolerance: int = 60) -> np.ndarray:
+def _is_key_color(pixels: np.ndarray, key_color: tuple[int, int, int], tolerance: int = 80) -> np.ndarray:
     """Check which pixels match the key color within tolerance.
 
     Accepts (N, 3+) or (1, N, 3+) shaped arrays; always returns a 1-D bool array of length N.
@@ -110,6 +110,14 @@ def detect_grid(
             cells.append(Cell(idx, cx1, ry1, cx2 - cx1, ry2 - ry1))
             idx += 1
 
+    # Filter out cells that are too small (likely label strips or noise)
+    min_w = max(30, int(w * 0.05))
+    min_h = max(30, int(h * 0.10))
+    cells = [c for c in cells if c.w >= min_w and c.h >= min_h]
+    # Re-index after filtering
+    for i, c in enumerate(cells):
+        c.index = i
+
     return cells
 
 
@@ -137,6 +145,8 @@ def _find_content_bands(is_content: np.ndarray, min_gap: int) -> list[tuple[int,
     if in_band:
         bands.append((start, len(is_content)))
 
+    # Filter out degenerate bands (narrower than min_gap)
+    bands = [(s, e) for s, e in bands if e - s >= min_gap]
     return bands if bands else [(0, len(is_content))]
 
 
