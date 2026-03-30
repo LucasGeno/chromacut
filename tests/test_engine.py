@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import numpy as np
+import pytest
 from PIL import Image
 
 from chromacut.engine import despill_extract, pad_and_resize
@@ -76,3 +79,55 @@ def test_pad_and_resize_nearest_for_pixel_art():
     reds = result_arr[visible, 0]
     # With NEAREST, all visible pixels should be exactly 255 (the original red)
     assert (reds == 255).all(), "NEAREST should preserve exact pixel values"
+
+
+def test_full_pipeline_single_fixture():
+    """End-to-end: load fixture -> analyze -> extract -> verify clean output."""
+    from chromacut.grid import analyze_image
+    from scipy.ndimage import binary_dilation
+
+    fixture = Path(__file__).parent / "fixtures" / "single-icon.png"
+    if not fixture.exists():
+        pytest.skip("Fixture not generated")
+
+    img = Image.open(fixture).convert("RGBA")
+    analysis = analyze_image(img)
+    assert analysis["mode"] == "single"
+
+    cell = analysis["cells"][0]
+    cropped = img.crop((cell["x"], cell["y"], cell["x"] + cell["w"], cell["y"] + cell["h"]))
+    processed = despill_extract(cropped)
+    result = pad_and_resize(processed, 512, 0.15)
+
+    arr = np.array(result)
+    # Zero green fringe
+    a = arr[:, :, 3]
+    transparent = a < 10
+    visible = a > 10
+    border = binary_dilation(transparent, iterations=1) & visible
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    green_fringe = border & (g > r * 1.2) & (g > b * 1.2) & (g > 80)
+    assert green_fringe.sum() == 0, f"Green fringe pixels found: {green_fringe.sum()}"
+
+
+def test_full_pipeline_grid_fixture():
+    """End-to-end: load grid fixture -> analyze -> extract all cells."""
+    from chromacut.grid import analyze_image
+
+    fixture = Path(__file__).parent / "fixtures" / "grid-3x1.png"
+    if not fixture.exists():
+        pytest.skip("Fixture not generated")
+
+    img = Image.open(fixture).convert("RGBA")
+    analysis = analyze_image(img)
+    assert analysis["mode"] == "grid"
+    assert len(analysis["cells"]) == 3, f"Expected 3 cells, got {len(analysis['cells'])}"
+
+    for cell in analysis["cells"]:
+        cropped = img.crop((cell["x"], cell["y"], cell["x"] + cell["w"], cell["y"] + cell["h"]))
+        processed = despill_extract(cropped)
+        result = pad_and_resize(processed, 256, 0.15, "nearest")
+        assert result.size == (256, 256)
+        # Verify non-empty — should have visible content
+        arr = np.array(result)
+        assert (arr[:, :, 3] > 0).sum() > 100, "Extracted cell should have visible content"
