@@ -197,9 +197,7 @@
         const scaleX = overlayCanvas.width / sourceImage.width;
         const scaleY = overlayCanvas.height / sourceImage.height;
 
-        ctx.strokeStyle = '#44e044';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 3]);
+        const hovered = typeof _hoveredCell !== 'undefined' ? _hoveredCell : -1;
 
         analysisData.cells.forEach((cell, i) => {
             const x = cell.x * scaleX;
@@ -208,20 +206,24 @@
             const h = cell.h * scaleY;
 
             if (i === selectedCell) {
-                ctx.strokeStyle = '#66ff66';
+                ctx.strokeStyle = '#00DDFF';
                 ctx.lineWidth = 2;
+                ctx.setLineDash([]);
+            } else if (i === hovered) {
+                ctx.strokeStyle = '#00DDFFCC';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([]);
             } else {
-                ctx.strokeStyle = '#44e04488';
+                ctx.strokeStyle = '#00DDFF88';
                 ctx.lineWidth = 1;
+                ctx.setLineDash([6, 3]);
             }
             ctx.strokeRect(x, y, w, h);
 
-            // Cell index label
             ctx.setLineDash([]);
-            ctx.fillStyle = i === selectedCell ? '#66ff66' : '#44e04488';
+            ctx.fillStyle = i === selectedCell ? '#00DDFF' : (i === hovered ? '#00DDFFCC' : '#00DDFF88');
             ctx.font = '11px "DM Mono", monospace';
             ctx.fillText(i + 1, x + 4, y + 14);
-            ctx.setLineDash([6, 3]);
         });
     }
 

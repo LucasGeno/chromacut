@@ -29,6 +29,11 @@
     --accent-glow: #44e04422;
     --accent-text: #66ff66;
 
+    /* Overlay — high contrast against green-screen source */
+    --overlay: #00DDFF;
+    --overlay-dim: #00DDFF88;
+    --overlay-text: #00DDFF;
+
     /* Status */
     --danger: #e04444;
     --warn: #e0a844;
