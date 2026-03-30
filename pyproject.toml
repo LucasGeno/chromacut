@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
     "markdown>=3.4",
+    "python-multipart>=0.0.6",
 ]
 
 [project.optional-dependencies]
