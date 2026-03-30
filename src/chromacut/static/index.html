@@ -4,10 +4,164 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>chromacut</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>chromacut</h1>
-    <p>Extract clean icons from AI-generated chroma-key images.</p>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="logo">
+            <span class="logo-icon"></span>
+            <h1>chromacut</h1>
+        </div>
+        <nav class="tab-bar">
+            <button class="tab active" data-tab="extract">Extract</button>
+            <button class="tab" data-tab="guides">Guides</button>
+        </nav>
+        <div class="header-spacer"></div>
+    </header>
+
+    <!-- Extract Tab -->
+    <main id="tab-extract" class="tab-content active">
+        <!-- Drop zone (shown when no image loaded) -->
+        <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-inner">
+                <div class="drop-icon">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <rect x="6" y="6" width="36" height="36" rx="4" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
+                        <path d="M24 16v16M16 24h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <p class="drop-text">Drop a chroma-key image here</p>
+                <p class="drop-hint">PNG or JPG with solid-color background</p>
+                <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+        </div>
+
+        <!-- Workspace (shown after image loaded) -->
+        <div id="workspace" class="workspace hidden">
+            <div class="workspace-layout">
+                <!-- Preview area -->
+                <div class="preview-area">
+                    <div class="preview-header">
+                        <div class="preview-labels">
+                            <span class="preview-label">Source</span>
+                            <span class="preview-label">Preview</span>
+                        </div>
+                        <button id="btn-new" class="btn-icon" title="Load new image">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="preview-panels">
+                        <div class="preview-panel source-panel">
+                            <canvas id="source-canvas"></canvas>
+                            <canvas id="overlay-canvas" class="overlay"></canvas>
+                        </div>
+                        <div class="preview-panel result-panel">
+                            <div class="checkerboard">
+                                <canvas id="result-canvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid thumbnails (shown in grid mode) -->
+                    <div id="cell-strip" class="cell-strip hidden">
+                        <div class="cell-strip-label">Detected cells</div>
+                        <div id="cell-thumbnails" class="cell-thumbnails"></div>
+                    </div>
+                </div>
+
+                <!-- Settings sidebar -->
+                <aside class="settings-panel">
+                    <div class="settings-section">
+                        <h3 class="settings-title">Output</h3>
+                        <div class="setting-row">
+                            <label>Size</label>
+                            <div class="btn-group" data-setting="output_size">
+                                <button data-value="256">256</button>
+                                <button data-value="512" class="active">512</button>
+                                <button data-value="1024">1024</button>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <label>Padding</label>
+                            <div class="slider-row">
+                                <input type="range" id="padding-slider" min="0" max="30" value="15" step="1">
+                                <span id="padding-value" class="mono-value">15%</span>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <label>Style</label>
+                            <div class="btn-group" data-setting="art_style">
+                                <button data-value="pixel" class="active">Pixel</button>
+                                <button data-value="illustrated">Illustrated</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title">Detection</h3>
+                        <div class="setting-row">
+                            <label>Key color</label>
+                            <div class="color-display">
+                                <span id="key-color-swatch" class="color-swatch"></span>
+                                <span id="key-color-hex" class="mono-value">#00FF00</span>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <label>Mode</label>
+                            <span id="detect-mode" class="mono-value">--</span>
+                        </div>
+                        <div class="setting-row">
+                            <label>Grid override</label>
+                            <div class="grid-override">
+                                <input type="number" id="grid-cols" placeholder="cols" min="1" max="10">
+                                <span class="mono-value">&times;</span>
+                                <input type="number" id="grid-rows" placeholder="rows" min="1" max="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title">Names</h3>
+                        <div id="name-fields" class="name-fields"></div>
+                    </div>
+
+                    <div class="settings-section export-section">
+                        <button id="btn-export" class="btn-export">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 2v8M4 7l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 12v2h12v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Export
+                        </button>
+                        <div id="export-status" class="export-status"></div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <!-- Guides Tab -->
+    <main id="tab-guides" class="tab-content">
+        <div class="guides-layout">
+            <nav class="guides-sidebar">
+                <a class="guide-link active" data-guide="pixel-art">Pixel Art</a>
+                <a class="guide-link" data-guide="flat-icons">Flat Icons</a>
+                <a class="guide-link" data-guide="isometric">Isometric</a>
+                <a class="guide-link" data-guide="general-tips">General Tips</a>
+                <a class="guide-link" data-guide="color-palette">Color Palette</a>
+            </nav>
+            <article id="guide-content" class="guide-content">
+                <div class="guide-placeholder">Select a guide from the sidebar.</div>
+            </article>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
 </body>
 </html>
