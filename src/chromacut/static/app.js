@@ -483,6 +483,132 @@
         if (activeDrag) commitDrag();
     });
 
+    // ---- Drag helpers ----
+    const MIN_CELL_DIM = 20;
+
+    function clampMove(cell) {
+        cell.x = Math.max(0, Math.min(cell.x, sourceImage.width - cell.w));
+        cell.y = Math.max(0, Math.min(cell.y, sourceImage.height - cell.h));
+    }
+
+    function clampResize(cell) {
+        cell.x = Math.max(0, Math.min(cell.x, sourceImage.width - MIN_CELL_DIM));
+        cell.y = Math.max(0, Math.min(cell.y, sourceImage.height - MIN_CELL_DIM));
+        cell.w = Math.max(MIN_CELL_DIM, Math.min(cell.w, sourceImage.width - cell.x));
+        cell.h = Math.max(MIN_CELL_DIM, Math.min(cell.h, sourceImage.height - cell.y));
+    }
+
+    function handleDragMove(canvasX, canvasY) {
+        if (!activeDrag) return;
+        const img = canvasToImage(canvasX, canvasY);
+        const { mode, handle, startPointer, startRect, cellIndex } = activeDrag;
+        const cell = editedCells[cellIndex];
+        const dx = img.x - startPointer.x;
+        const dy = img.y - startPointer.y;
+
+        if (mode === 'move') {
+            cell.x = Math.round(startRect.x + dx);
+            cell.y = Math.round(startRect.y + dy);
+            cell.w = startRect.w;
+            cell.h = startRect.h;
+            clampMove(cell);
+        } else if (mode === 'resize') {
+            let newX = startRect.x;
+            let newY = startRect.y;
+            let newW = startRect.w;
+            let newH = startRect.h;
+
+            if (handle.includes('w')) { newX = Math.round(startRect.x + dx); newW = Math.round(startRect.w - dx); }
+            if (handle.includes('e')) { newW = Math.round(startRect.w + dx); }
+            if (handle.includes('n')) { newY = Math.round(startRect.y + dy); newH = Math.round(startRect.h - dy); }
+            if (handle.includes('s')) { newH = Math.round(startRect.h + dy); }
+
+            if (newW < MIN_CELL_DIM) {
+                if (handle.includes('w')) newX = startRect.x + startRect.w - MIN_CELL_DIM;
+                newW = MIN_CELL_DIM;
+            }
+            if (newH < MIN_CELL_DIM) {
+                if (handle.includes('n')) newY = startRect.y + startRect.h - MIN_CELL_DIM;
+                newH = MIN_CELL_DIM;
+            }
+
+            cell.x = newX;
+            cell.y = newY;
+            cell.w = newW;
+            cell.h = newH;
+            clampResize(cell);
+        }
+
+        previewImages[cellIndex] = null;
+        drawOverlay();
+        updatePreview();
+    }
+
+    let _previewAbortController = null;
+
+    function commitDrag() {
+        const cellIndex = activeDrag?.cellIndex;
+        activeDrag = null;
+
+        if (cellIndex != null && cellIndex >= 0) {
+            refreshCellPreview(cellIndex);
+            rebuildCellThumbnail(cellIndex);
+        }
+    }
+
+    async function refreshCellPreview(cellIndex) {
+        if (!sourceFile || cellIndex < 0 || cellIndex >= editedCells.length) return;
+
+        if (_previewAbortController) _previewAbortController.abort();
+        _previewAbortController = new AbortController();
+
+        const cell = editedCells[cellIndex];
+        const form = new FormData();
+        form.append('file', sourceFile);
+        form.append('settings', JSON.stringify({ x: cell.x, y: cell.y, w: cell.w, h: cell.h }));
+
+        try {
+            const resp = await fetch('/api/preview', {
+                method: 'POST',
+                body: form,
+                signal: _previewAbortController.signal,
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            if (selectedCell !== cellIndex) return;
+
+            const img = new Image();
+            img.onload = () => {
+                previewImages[cellIndex] = img;
+                updatePreview();
+            };
+            img.src = data.preview;
+        } catch (err) {
+            if (err.name !== 'AbortError') console.warn('Preview refresh failed:', err);
+        }
+    }
+
+    function rebuildCellThumbnail(cellIndex) {
+        const thumbs = cellThumbnails.querySelectorAll('.cell-thumb');
+        if (cellIndex >= thumbs.length) return;
+        const thumb = thumbs[cellIndex];
+        const cell = editedCells[cellIndex];
+        const canvas = thumb.querySelector('canvas');
+        if (!canvas || !sourceImage) return;
+
+        const size = 68;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.min(size / cell.w, size / cell.h);
+        const sw = cell.w * scale;
+        const sh = cell.h * scale;
+        ctx.drawImage(sourceImage, cell.x, cell.y, cell.w, cell.h,
+                     (size - sw) / 2, (size - sh) / 2, sw, sh);
+        quickGreenRemove(ctx, size, size);
+    }
+
     // ---- Build cell thumbnails ----
     function buildCellThumbnails() {
         cellThumbnails.innerHTML = '';
