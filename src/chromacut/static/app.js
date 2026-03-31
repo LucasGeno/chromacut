@@ -11,6 +11,8 @@
     let sourceImage = null;   // HTMLImageElement
     let analysisData = null;  // response from /api/analyze
     let selectedCell = 0;
+    let _hoveredCell = -1;
+    let previewImages = [];  // HTMLImageElements from backend despill
     let _lastSourceCrop = null;  // for before/after toggle
 
     // ---- DOM refs ----
@@ -125,9 +127,11 @@
         if (!_lastSourceCrop || !sourceImage) return;
         const { x, y, w, h } = _lastSourceCrop;
 
-        const panel = resultCanvas.parentElement;
         const sizeBtn = $('[data-setting="output_size"] button.active');
         const outputSize = parseInt(sizeBtn?.dataset.value || '512');
+        const paddingPct = parseInt(paddingSlider.value) / 100;
+
+        const panel = resultCanvas.parentElement;
         const displayScale = Math.min(
             (panel.clientWidth - 8) / outputSize,
             (panel.clientHeight - 8) / outputSize,
@@ -140,11 +144,19 @@
         const ctx = resultCanvas.getContext('2d');
         ctx.clearRect(0, 0, displaySize, displaySize);
 
-        const scale = Math.min(displaySize / w, displaySize / h) * 0.85;
-        const sw = Math.round(w * scale);
-        const sh = Math.round(h * scale);
-        ctx.drawImage(sourceImage, x, y, w, h,
-                     (displaySize - sw) / 2, (displaySize - sh) / 2, sw, sh);
+        // Use same framing as updatePreview — cell bounds with padding
+        const innerSize = outputSize * (1 - paddingPct);
+        const scale = Math.min(innerSize / w, innerSize / h);
+        const scaledW = Math.round(w * scale);
+        const scaledH = Math.round(h * scale);
+
+        const dScale = displaySize / outputSize;
+        const dScaledW = Math.round(scaledW * dScale);
+        const dScaledH = Math.round(scaledH * dScale);
+        const dx = Math.round((displaySize - dScaledW) / 2);
+        const dy = Math.round((displaySize - dScaledH) / 2);
+
+        ctx.drawImage(sourceImage, x, y, w, h, dx, dy, dScaledW, dScaledH);
     }
 
     // ---- Export ----
@@ -173,6 +185,7 @@
         sourceImage = null;
         analysisData = null;
         selectedCell = 0;
+        previewImages = [];
         workspace.classList.add('hidden');
         dropZone.classList.remove('hidden');
         cellStrip.classList.add('hidden');
@@ -214,6 +227,17 @@
         try {
             const resp = await fetch('/api/analyze', { method: 'POST', body: form });
             analysisData = await resp.json();
+
+            // Decode backend-rendered previews
+            previewImages = [];
+            if (analysisData.previews) {
+                for (const dataUrl of analysisData.previews) {
+                    const img = new Image();
+                    img.src = dataUrl;
+                    previewImages.push(img);
+                }
+            }
+
             updateDetectionUI();
             drawOverlay();
             buildNameFields();
@@ -343,58 +367,24 @@
         });
     }
 
-    // ---- Canvas preview (client-side pipeline simulation) ----
+    // ---- Canvas preview ----
     function updatePreview() {
         if (!sourceImage || !analysisData) return;
 
         const cell = analysisData.cells[selectedCell] || analysisData.cells[0];
         if (!cell) return;
 
-        // Step 1: Draw cell at full resolution into an offscreen canvas
-        const offscreen = document.createElement('canvas');
-        offscreen.width = cell.w;
-        offscreen.height = cell.h;
-        const offCtx = offscreen.getContext('2d');
-        offCtx.drawImage(sourceImage, cell.x, cell.y, cell.w, cell.h, 0, 0, cell.w, cell.h);
+        // Store full cell bounds for before/after framing
+        _lastSourceCrop = { x: cell.x, y: cell.y, w: cell.w, h: cell.h };
 
-        // Step 2: Quick green removal
-        quickGreenRemove(offCtx, cell.w, cell.h);
-
-        // Step 3: Find tight bounding box of visible pixels
-        const imgData = offCtx.getImageData(0, 0, cell.w, cell.h);
-        const d = imgData.data;
-        let minX = cell.w, minY = cell.h, maxX = 0, maxY = 0;
-        for (let y = 0; y < cell.h; y++) {
-            for (let x = 0; x < cell.w; x++) {
-                if (d[(y * cell.w + x) * 4 + 3] > 10) {
-                    if (x < minX) minX = x;
-                    if (x > maxX) maxX = x;
-                    if (y < minY) minY = y;
-                    if (y > maxY) maxY = y;
-                }
-            }
-        }
-
-        if (maxX <= minX || maxY <= minY) {
-            _lastSourceCrop = null;
-            return;
-        }
-
-        const cropW = maxX - minX + 1;
-        const cropH = maxY - minY + 1;
-
-        // Step 4: Get current settings
+        // Get current settings
         const paddingPct = parseInt(paddingSlider.value) / 100;
         const sizeBtn = $('[data-setting="output_size"] button.active');
         const outputSize = parseInt(sizeBtn?.dataset.value || '512');
+        const styleBtn = $('[data-setting="art_style"] button.active');
+        const artStyle = styleBtn?.dataset.value || 'pixel';
 
-        // Step 5: Calculate padded canvas layout
-        const innerSize = outputSize * (1 - paddingPct);
-        const scale = Math.min(innerSize / cropW, innerSize / cropH);
-        const scaledW = Math.round(cropW * scale);
-        const scaledH = Math.round(cropH * scale);
-
-        // Step 6: Render onto the result canvas
+        // Calculate display size
         const panel = resultCanvas.parentElement;
         const displayScale = Math.min(
             (panel.clientWidth - 8) / outputSize,
@@ -407,24 +397,66 @@
         resultCanvas.height = displaySize;
         const ctx = resultCanvas.getContext('2d');
         ctx.clearRect(0, 0, displaySize, displaySize);
-
-        // Scale everything to display size
-        const dScale = displaySize / outputSize;
-        const dScaledW = Math.round(scaledW * dScale);
-        const dScaledH = Math.round(scaledH * dScale);
-        const dx = Math.round((displaySize - dScaledW) / 2);
-        const dy = Math.round((displaySize - dScaledH) / 2);
-
-        // Use nearest-neighbor for pixel art, smooth for illustrated
-        const styleBtn = $('[data-setting="art_style"] button.active');
-        const artStyle = styleBtn?.dataset.value || 'pixel';
         ctx.imageSmoothingEnabled = (artStyle !== 'pixel');
 
-        // Draw the tight-cropped content centered with padding
-        ctx.drawImage(offscreen, minX, minY, cropW, cropH, dx, dy, dScaledW, dScaledH);
+        // Use backend preview if available, fallback to client-side
+        const previewImg = previewImages[selectedCell];
+        if (previewImg && previewImg.complete && previewImg.naturalWidth > 0) {
+            // Backend preview is already despilled and tight-cropped
+            const pw = previewImg.naturalWidth;
+            const ph = previewImg.naturalHeight;
 
-        // Store the source crop for before/after toggle
-        _lastSourceCrop = { x: cell.x + minX, y: cell.y + minY, w: cropW, h: cropH };
+            const innerSize = outputSize * (1 - paddingPct);
+            const scale = Math.min(innerSize / pw, innerSize / ph);
+            const scaledW = Math.round(pw * scale);
+            const scaledH = Math.round(ph * scale);
+
+            const dScale = displaySize / outputSize;
+            const dScaledW = Math.round(scaledW * dScale);
+            const dScaledH = Math.round(scaledH * dScale);
+            const dx = Math.round((displaySize - dScaledW) / 2);
+            const dy = Math.round((displaySize - dScaledH) / 2);
+
+            ctx.drawImage(previewImg, 0, 0, pw, ph, dx, dy, dScaledW, dScaledH);
+        } else {
+            // Fallback: client-side green removal (for thumbnails or if previews not loaded)
+            const offscreen = document.createElement('canvas');
+            offscreen.width = cell.w;
+            offscreen.height = cell.h;
+            const offCtx = offscreen.getContext('2d');
+            offCtx.drawImage(sourceImage, cell.x, cell.y, cell.w, cell.h, 0, 0, cell.w, cell.h);
+            quickGreenRemove(offCtx, cell.w, cell.h);
+
+            const imgData = offCtx.getImageData(0, 0, cell.w, cell.h);
+            const d = imgData.data;
+            let minX = cell.w, minY = cell.h, maxX = 0, maxY = 0;
+            for (let y = 0; y < cell.h; y++) {
+                for (let x = 0; x < cell.w; x++) {
+                    if (d[(y * cell.w + x) * 4 + 3] > 10) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+            if (maxX <= minX || maxY <= minY) return;
+
+            const cropW = maxX - minX + 1;
+            const cropH = maxY - minY + 1;
+            const innerSize = outputSize * (1 - paddingPct);
+            const scale = Math.min(innerSize / cropW, innerSize / cropH);
+            const scaledW = Math.round(cropW * scale);
+            const scaledH = Math.round(cropH * scale);
+
+            const dScale = displaySize / outputSize;
+            const dScaledW = Math.round(scaledW * dScale);
+            const dScaledH = Math.round(scaledH * dScale);
+            const dx = Math.round((displaySize - dScaledW) / 2);
+            const dy = Math.round((displaySize - dScaledH) / 2);
+
+            ctx.drawImage(offscreen, minX, minY, cropW, cropH, dx, dy, dScaledW, dScaledH);
+        }
     }
 
     // ---- Quick green removal (Canvas API) ----
@@ -583,6 +615,20 @@
                 updatePreview();
             }
         }, 100);
+    });
+
+    // ---- Clipboard paste ----
+    window.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) handleFile(file);
+                return;
+            }
+        }
     });
 
 })();
