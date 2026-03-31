@@ -284,7 +284,7 @@
         const scaleX = overlayCanvas.width / sourceImage.width;
         const scaleY = overlayCanvas.height / sourceImage.height;
 
-        const hovered = typeof _hoveredCell !== 'undefined' ? _hoveredCell : -1;
+        const hovered = _hoveredCell;
 
         editedCells.forEach((cell, i) => {
             const x = cell.x * scaleX;
@@ -312,7 +312,176 @@
             ctx.font = '11px "DM Mono", monospace';
             ctx.fillText(i + 1, x + 4, y + 14);
         });
+
+        // Draw handles on selected cell
+        if (selectedCell >= 0 && selectedCell < editedCells.length) {
+            const handles = getHandlePositions(editedCells[selectedCell]);
+            const handleSize = 6;
+            ctx.fillStyle = '#FF2D9B';
+            ctx.strokeStyle = '#0e0e15';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([]);
+
+            for (const name of HANDLE_NAMES) {
+                const hp = handles[name];
+                const cp = imageToCanvas(hp.x, hp.y);
+                ctx.fillRect(cp.x - handleSize / 2, cp.y - handleSize / 2, handleSize, handleSize);
+                ctx.strokeRect(cp.x - handleSize / 2, cp.y - handleSize / 2, handleSize, handleSize);
+            }
+        }
     }
+
+    // ---- Coordinate conversion ----
+    function canvasToImage(canvasX, canvasY) {
+        return {
+            x: canvasX * sourceImage.width / overlayCanvas.width,
+            y: canvasY * sourceImage.height / overlayCanvas.height,
+        };
+    }
+
+    function imageToCanvas(imgX, imgY) {
+        return {
+            x: imgX * overlayCanvas.width / sourceImage.width,
+            y: imgY * overlayCanvas.height / sourceImage.height,
+        };
+    }
+
+    // ---- Hit testing ----
+    const HANDLE_HIT_PX = 12;
+    const HANDLE_NAMES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+    function getHandlePositions(cell) {
+        const { x, y, w, h } = cell;
+        return {
+            nw: { x: x, y: y },
+            n:  { x: x + w / 2, y: y },
+            ne: { x: x + w, y: y },
+            e:  { x: x + w, y: y + h / 2 },
+            se: { x: x + w, y: y + h },
+            s:  { x: x + w / 2, y: y + h },
+            sw: { x: x, y: y + h },
+            w:  { x: x, y: y + h / 2 },
+        };
+    }
+
+    function hitTest(canvasX, canvasY) {
+        const img = canvasToImage(canvasX, canvasY);
+        const hitZone = HANDLE_HIT_PX * sourceImage.width / overlayCanvas.width;
+
+        // Check handles of selected cell first
+        if (selectedCell >= 0 && selectedCell < editedCells.length) {
+            const handles = getHandlePositions(editedCells[selectedCell]);
+            for (const name of HANDLE_NAMES) {
+                const hp = handles[name];
+                if (Math.abs(img.x - hp.x) < hitZone && Math.abs(img.y - hp.y) < hitZone) {
+                    return { type: 'handle', cellIndex: selectedCell, handle: name };
+                }
+            }
+        }
+
+        // Check cell interiors (reverse order so topmost wins)
+        for (let i = editedCells.length - 1; i >= 0; i--) {
+            const c = editedCells[i];
+            if (img.x >= c.x && img.x <= c.x + c.w && img.y >= c.y && img.y <= c.y + c.h) {
+                return { type: 'cell', cellIndex: i, handle: null };
+            }
+        }
+
+        return { type: 'none', cellIndex: -1, handle: null };
+    }
+
+    const CURSOR_MAP = {
+        nw: 'nwse-resize', se: 'nwse-resize',
+        ne: 'nesw-resize', sw: 'nesw-resize',
+        n: 'ns-resize', s: 'ns-resize',
+        e: 'ew-resize', w: 'ew-resize',
+    };
+
+    // ---- Overlay pointer events ----
+    overlayCanvas.addEventListener('pointerdown', (e) => {
+        if (!sourceImage || !editedCells.length) return;
+        const rect = overlayCanvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const hit = hitTest(cx, cy);
+
+        if (hit.type === 'none') {
+            if (selectedCell >= 0) {
+                selectedCell = -1;
+                drawOverlay();
+            }
+            return;
+        }
+
+        selectedCell = hit.cellIndex;
+        drawOverlay();
+        updatePreview();
+
+        $$('.cell-thumb').forEach((t, i) => {
+            t.classList.toggle('active', i === selectedCell);
+        });
+
+        if (hit.type === 'handle') {
+            const cell = editedCells[selectedCell];
+            activeDrag = {
+                mode: 'resize',
+                handle: hit.handle,
+                startPointer: canvasToImage(cx, cy),
+                startRect: { x: cell.x, y: cell.y, w: cell.w, h: cell.h },
+                cellIndex: selectedCell,
+            };
+            overlayCanvas.setPointerCapture(e.pointerId);
+        } else if (hit.type === 'cell' && hit.cellIndex === selectedCell) {
+            const cell = editedCells[selectedCell];
+            activeDrag = {
+                mode: 'move',
+                handle: null,
+                startPointer: canvasToImage(cx, cy),
+                startRect: { x: cell.x, y: cell.y, w: cell.w, h: cell.h },
+                cellIndex: selectedCell,
+            };
+            overlayCanvas.setPointerCapture(e.pointerId);
+        }
+    });
+
+    overlayCanvas.addEventListener('pointermove', (e) => {
+        if (!sourceImage || !editedCells.length) return;
+        const rect = overlayCanvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+
+        if (activeDrag) {
+            handleDragMove(cx, cy);
+            return;
+        }
+
+        const hit = hitTest(cx, cy);
+        if (hit.type === 'handle') {
+            overlayCanvas.style.cursor = CURSOR_MAP[hit.handle] || 'crosshair';
+        } else if (hit.type === 'cell') {
+            overlayCanvas.style.cursor = 'move';
+        } else {
+            overlayCanvas.style.cursor = 'crosshair';
+        }
+
+        const newHovered = hit.type !== 'none' ? hit.cellIndex : -1;
+        if (newHovered !== _hoveredCell) {
+            _hoveredCell = newHovered;
+            drawOverlay();
+        }
+    });
+
+    overlayCanvas.addEventListener('pointerup', (e) => {
+        if (activeDrag) commitDrag();
+    });
+
+    overlayCanvas.addEventListener('pointercancel', () => {
+        if (activeDrag) commitDrag();
+    });
+
+    overlayCanvas.addEventListener('lostpointercapture', () => {
+        if (activeDrag) commitDrag();
+    });
 
     // ---- Build cell thumbnails ----
     function buildCellThumbnails() {
