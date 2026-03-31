@@ -18,9 +18,11 @@ In `despill_extract()`, replace static `iterations=1` with:
 
 ```python
 min_dim = min(px.shape[0], px.shape[1])
-iterations = max(1, min_dim // 200)
+iterations = max(1, min(min_dim // 200, 3))
 eroded = binary_erosion(solid_mask, iterations=iterations)
 ```
+
+Hard cap at 3 iterations until real fixture evidence supports stronger erosion. At 5 iterations (1024px uncapped), fine line-art and antialiased edges risk being eaten.
 
 ### Behavior
 
@@ -30,7 +32,7 @@ eroded = binary_erosion(solid_mask, iterations=iterations)
 | 128x128 | 1 | Unchanged |
 | 200x400 | 1 | Unchanged |
 | 512x512 | 2 | Slightly more fringe removal |
-| 1024x1024 | 5 | Proportional to resolution |
+| 1024x1024 | 3 | Capped — proportional but conservative |
 
 ### Files changed
 
@@ -75,6 +77,12 @@ Crops the cell region from the source image, runs `despill_extract()`, tight-cro
 
 Each preview is a base64-encoded PNG of the despilled, tight-cropped cell content. One per cell, indexed to match the `cells` array.
 
+**Preview size cap:** Before base64 encoding, each preview is downscaled so its largest dimension does not exceed 384px (preserving aspect ratio, using NEAREST for pixel art, LANCZOS for illustrated). This bounds the response size for dense grids — a 4x2 grid produces ~8 previews at max 384x384, roughly ~800KB-1MB base64 total.
+
+### Before/after framing contract
+
+Both the "before" (raw source) and "after" (despilled preview) views use the **full cell bounds** as their framing box. The before view draws the raw source pixels within the cell region. The after view draws the despilled content within the same cell region. Padding is applied identically in both modes. This prevents perceived "jumping" when toggling Space.
+
 ### Frontend changes
 
 **`app.js`:**
@@ -82,8 +90,8 @@ Each preview is a base64-encoded PNG of the despilled, tight-cropped cell conten
 - On analyze response: decode each base64 preview into an `HTMLImageElement`, store in a `previewImages` array
 - `updatePreview()` draws the pre-despilled image directly onto the result canvas with padding/size/style applied — no `quickGreenRemove()` call
 - `quickGreenRemove()` retained only for cell strip thumbnails (small, approximate is acceptable)
-- `_lastSourceCrop` tracks the original cell bounds (not the client-side green removal bounding box), since the backend preview IS the tight crop
-- Before/after toggle (Space key): unchanged behavior — release shows backend preview, hold shows raw source crop
+- `_lastSourceCrop` tracks the full cell bounds (x, y, w, h from analysisData), used as the framing box for both before and after views
+- Before/after toggle (Space key): both views use identical framing (full cell bounds). Release shows despilled preview within cell frame. Hold shows raw source within same cell frame. Padding applied identically in both modes
 
 ### Latency
 
@@ -91,7 +99,7 @@ Each preview is a base64-encoded PNG of the despilled, tight-cropped cell conten
 
 ### What doesn't change
 
-- `/api/extract` — export path untouched (except the separate optimization in section 5)
+- `/api/extract` — export path untouched (except the separate optimization in section 7)
 - Cell strip thumbnails — keep using `quickGreenRemove()`
 - No new endpoints, no new dependencies
 - Backwards-compatible: clients ignoring `previews` still work
@@ -164,7 +172,7 @@ Create `src/chromacut/utils.py` with the shared function. Import from both `cli.
 
 ### Testing
 
-Existing path traversal tests in `test_api.py` cover this. No new tests needed.
+Existing path traversal tests in `test_api.py` cover the API path. Add one unit test for `sanitize_name()` in a new `test_utils.py` covering the behavior matrix: `../`, `\`, leading/trailing dots, empty string, and clean passthrough.
 
 ---
 
@@ -253,6 +261,6 @@ Update existing `test_extract_returns_zip` to include cell bounds in the setting
 | Fix hoveredCell | `app.js` | 1 line |
 | Vectorize key_mask | `grid.py` | Replace 3 lines with 1 |
 | Remove double analysis | `app.py`, `app.js` | ~15 lines backend + ~5 lines frontend |
-| Tests | `test_engine.py`, `test_api.py` | ~4 new tests + minor updates |
+| Tests | `test_engine.py`, `test_api.py`, `test_utils.py` | ~5 new tests + minor updates |
 
-**Total: ~7 files modified, 1 new file, ~4 new tests.**
+**Total: ~7 files modified, 2 new files (`utils.py`, `test_utils.py`), ~5 new tests.**
