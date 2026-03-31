@@ -292,6 +292,20 @@ body {
     justify-content: center;
 }
 
+/* Canvas stacking: both canvases occupy same grid cell, perfectly aligned */
+.canvas-stack {
+    display: grid;
+    place-items: center;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.canvas-stack canvas {
+    grid-area: 1 / 1;
+    max-width: 100%;
+    max-height: 100%;
+}
+
 .preview-panel canvas {
     max-width: 100%;
     max-height: 100%;
@@ -299,9 +313,8 @@ body {
 }
 
 .overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
+    cursor: crosshair;
+    z-index: 1;
 }
 
 /* Checkerboard transparency background */

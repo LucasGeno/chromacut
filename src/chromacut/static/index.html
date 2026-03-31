@@ -58,8 +58,10 @@
                     </div>
                     <div class="preview-panels">
                         <div class="preview-panel source-panel">
-                            <canvas id="source-canvas"></canvas>
-                            <canvas id="overlay-canvas" class="overlay"></canvas>
+                            <div class="canvas-stack">
+                                <canvas id="source-canvas"></canvas>
+                                <canvas id="overlay-canvas" class="overlay"></canvas>
+                            </div>
                             <div id="loading-overlay" class="loading-overlay hidden">
                                 <div class="spinner"></div>
                                 <span class="loading-text">Analyzing...</span>
