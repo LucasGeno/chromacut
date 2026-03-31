@@ -622,6 +622,24 @@ input[type="range"]::-webkit-slider-thumb:hover {
     min-height: 16px;
 }
 
+.btn-reset {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-reset:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
+
 /* ============================================================
    Guides Tab
    ============================================================ */

@@ -40,6 +40,7 @@
     const detectMode = $('#detect-mode');
     const beforeAfterBadge = $('#before-after-badge');
     const loadingOverlay = $('#loading-overlay');
+    const btnResetBoxes = $('#btn-reset-boxes');
 
     // ---- Tab switching ----
     $$('.tab').forEach(tab => {
@@ -85,6 +86,30 @@
 
     // ---- New image button ----
     btnNew.addEventListener('click', resetWorkspace);
+
+    // ---- Reset boxes ----
+    if (btnResetBoxes) {
+        btnResetBoxes.addEventListener('click', () => {
+            if (!analysisData) return;
+
+            editedCells = analysisData.cells.map(c => ({...c}));
+            selectedCell = 0;
+
+            previewImages = [];
+            if (analysisData.previews) {
+                for (const dataUrl of analysisData.previews) {
+                    const img = new Image();
+                    img.src = dataUrl;
+                    previewImages.push(img);
+                }
+            }
+
+            drawOverlay();
+            buildCellThumbnails();
+            buildNameFields();
+            updatePreview();
+        });
+    }
 
     // ---- Settings: button groups ----
     $$('.btn-group').forEach(group => {
