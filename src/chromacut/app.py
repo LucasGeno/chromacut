@@ -120,6 +120,46 @@ async def extract(file: UploadFile = File(...), settings: str = Form(...)):
     )
 
 
+@app.post("/api/preview")
+async def preview(file: UploadFile = File(...), settings: str = Form(...)):
+    try:
+        config = json.loads(settings)
+    except (json.JSONDecodeError, TypeError):
+        return JSONResponse({"error": "Invalid settings JSON"}, status_code=400)
+
+    try:
+        cx = int(config["x"])
+        cy = int(config["y"])
+        cw = int(config["w"])
+        ch = int(config["h"])
+    except (KeyError, TypeError, ValueError):
+        return JSONResponse({"error": "Missing or non-numeric bounds (x, y, w, h required)"}, status_code=400)
+
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        return JSONResponse({"error": "File too large (max 50 MB)"}, status_code=413)
+    try:
+        img = Image.open(io.BytesIO(contents)).convert("RGBA")
+        img.load()
+    except Exception:
+        return JSONResponse({"error": "Invalid image file"}, status_code=400)
+
+    cx = max(0, min(cx, img.width - 1))
+    cy = max(0, min(cy, img.height - 1))
+    cw = min(cw, img.width - cx)
+    ch = min(ch, img.height - cy)
+
+    if cw < 20 or ch < 20:
+        return JSONResponse({"error": "Crop area too small (min 20x20)"}, status_code=400)
+
+    cell = {"x": cx, "y": cy, "w": cw, "h": ch}
+    result = despill_crop(img, cell)
+    buf = io.BytesIO()
+    result.save(buf, "PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return JSONResponse({"preview": f"data:image/png;base64,{b64}"})
+
+
 @app.get("/api/guides/{topic}")
 async def get_guide(topic: str):
     if topic in _guide_cache:

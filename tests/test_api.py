@@ -155,3 +155,34 @@ def test_extract_invalid_settings_returns_400():
         data={"settings": "not json{{{"},
     )
     assert resp.status_code == 400
+
+
+def test_preview_returns_base64_png():
+    """POST /api/preview should return a base64-encoded RGBA PNG for given bounds."""
+    buf = _make_test_image()
+    settings = json.dumps({"x": 20, "y": 20, "w": 60, "h": 60})
+    resp = client.post(
+        "/api/preview",
+        files={"file": ("test.png", buf, "image/png")},
+        data={"settings": settings},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "preview" in data
+    assert data["preview"].startswith("data:image/png;base64,")
+    raw = base64.b64decode(data["preview"].split(",", 1)[1])
+    preview_img = Image.open(io.BytesIO(raw))
+    assert preview_img.mode == "RGBA"
+    assert preview_img.width > 0 and preview_img.height > 0
+
+
+def test_preview_rejects_invalid_bounds():
+    """POST /api/preview should return 400 for invalid bounds."""
+    buf = _make_test_image()
+    settings = json.dumps({"x": "bad", "y": 0, "w": 50, "h": 50})
+    resp = client.post(
+        "/api/preview",
+        files={"file": ("test.png", buf, "image/png")},
+        data={"settings": settings},
+    )
+    assert resp.status_code == 400
