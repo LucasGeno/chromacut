@@ -22,12 +22,19 @@ def _try_split_wide_bands(bands, key_pct, min_split_gap=5):
 ```
 
 Logic:
-1. Compute median band width from all detected bands
-2. For each band wider than 1.8x the median: scan its interior columns (excluding 10% margins on each side to avoid edge noise)
-3. Find the column with the highest key-color percentage within the band interior
-4. If that column has >0.8 key-color density (80% key pixels), split the band at that column
-5. Recurse on resulting bands (a band could contain 3+ merged icons)
-6. Apply the same logic to row bands
+1. If only one band exists: apply valley search if the band is wider than 40% of the total dimension (absolute trigger for single-band merges). Skip the median comparison — there's nothing to compare against.
+2. If multiple bands exist: compute median band width. Target bands wider than 1.8x the median.
+3. For each target band: scan its interior columns (excluding 10% margins on each side to avoid edge noise)
+4. Find the column with the highest key-color percentage within the band interior
+5. If that column has >0.8 key-color density (80% key pixels), split the band at that column
+6. Recurse on resulting bands (a band could contain 3+ merged icons)
+7. Apply the same logic to row bands
+
+### Recursion termination constraints
+
+- **Minimum child-band width:** 20px. If a split would create a child narrower than 20px, don't split.
+- **Maximum recursion depth:** 3. Enough for a 4-way merge. Beyond this, defer to manual box adjustment.
+- **Boundary guard:** If the best split column is within 10% of a band edge, skip the split (likely edge noise, not a real gap).
 
 ### Integration
 
@@ -44,7 +51,7 @@ row_groups = _try_split_wide_bands(row_groups, row_key_pct)
 
 - Single wide icon (no key-color valley inside): the 0.8 density threshold prevents false splits. A solid content region has low key-color density throughout — no column will reach 80%.
 - Two icons with very blended gap (gradient, not clean green): the 0.8 threshold requires a mostly-clean gap. Blended gaps below 0.8 won't trigger a split. This is intentional — ambiguous gaps should be left for manual box adjustment.
-- Bands with only 2 cells: the median heuristic works with 2+ bands. With a single band, no split is attempted (no median to compare against).
+- Single band (full merge): handled by the 40%-width absolute trigger. Valley search applies with the same 0.8 density threshold and recursion constraints.
 
 ### What doesn't change
 
@@ -58,10 +65,13 @@ row_groups = _try_split_wide_bands(row_groups, row_key_pct)
 
 ### Testing
 
-Two new tests in `test_grid.py`:
+Five new tests in `test_grid.py`:
 
-1. **Narrow-gap grid**: synthetic 4x1 grid with 10px gaps between 100px cells. Verify 4 cells detected (currently merges into fewer).
-2. **No false split**: synthetic single wide icon (200px content, no key-color valley). Verify 1 cell detected (not split).
+1. **Narrow-gap grid (multi-band split)**: synthetic 4x1 grid with 10px gaps between 100px cells, wide outer gaps (50px). Verify 4 cells detected — the narrow inner gaps trigger post-split on merged bands.
+2. **Single-band full merge**: synthetic 3x1 grid with 8px gaps, no outer gaps wide enough for initial band detection. All three icons merge into one band. Verify 3 cells detected via single-band fallback.
+3. **Three-way merge (recursive split)**: synthetic 3x1 grid inside one band requiring two recursive splits. Verify 3 cells detected.
+4. **No false split**: synthetic single wide icon (200px content, no key-color valley). Verify 1 cell detected (not split).
+5. **Row-only narrow gap**: synthetic 2x2 grid with narrow row gaps (10px) but normal column gaps (50px). Verify 4 cells detected — row split handles the merge.
 
 ---
 
@@ -71,7 +81,7 @@ Two new tests in `test_grid.py`:
 
 Two new state variables in `app.js`:
 
-- `editedCells` — mutable array, shallow copy of `analysisData.cells` created on each analyze response. All rendering, preview, and export reads from `editedCells` instead of `analysisData.cells`.
+- `editedCells` — mutable array, **deep copy** of `analysisData.cells` created on each analyze response via `analysisData.cells.map(c => ({...c}))`. All rendering, preview, and export reads from `editedCells` instead of `analysisData.cells`. Deep copy is required because editing mutates cell objects in-place during drag — a shallow copy would corrupt the immutable baseline.
 - `activeDrag` — `null` or `{ mode: 'move'|'resize', handle: string, startPointer: {x,y}, startRect: {x,y,w,h}, cellIndex: number }`. Tracks an in-progress drag operation.
 
 `analysisData.cells` remains immutable as the auto-detect baseline for "Reset to auto-detect".
@@ -93,6 +103,8 @@ function hitTest(imgX, imgY) → { type: 'handle'|'cell'|'none', cellIndex, hand
 Checks handles first (12px hit zone in canvas space, mapped to image space), then cell interiors, then nothing. Handle names: `nw`, `n`, `ne`, `e`, `se`, `s`, `sw`, `w`.
 
 **Click-to-select:** `pointerdown` on overlay → hit-test. If cell or handle hit, set `selectedCell` to that cell index. If nothing hit, set `selectedCell = -1` (deselect). Redraw overlay.
+
+**Deselect behavior:** When `selectedCell = -1`: handles disappear, keyboard nudge is disabled, preview panel freezes showing the last-viewed cell (no blank state). Thumbnails and export controls remain unaffected — export always includes all cells regardless of selection.
 
 **Hover:** `pointermove` when not dragging → hit-test, update `_hoveredCell` and cursor. Cursor map:
 
@@ -129,7 +141,7 @@ Triggers overlay redraw on each keystroke. Backend preview refresh is debounced 
 
 **During drag:** `updatePreview()` falls back to client-side `quickGreenRemove()` since the backend preview for the edited cell is stale. The existing fallback path in `updatePreview()` already handles this — the preview image for the edited cell is invalidated (set to `null` in `previewImages`).
 
-**On commit (pointerup / nudge keystroke):** Call `POST /api/preview` for the edited cell. On response, update `previewImages[cellIndex]` with the new decoded image. Call `updatePreview()` to render with the fresh backend preview.
+**On commit (pointerup / debounced nudge):** Call `POST /api/preview` for the edited cell. Each new preview request aborts the previous in-flight request via `AbortController` to prevent stale responses arriving after newer ones. On response, verify the cell index still matches `selectedCell` (discard if user switched cells during flight). Update `previewImages[cellIndex]` with the new decoded image and call `updatePreview()`.
 
 ### New Endpoint: POST /api/preview
 
@@ -139,7 +151,12 @@ Body: file (image) + settings JSON string: { "x": int, "y": int, "w": int, "h": 
 Response: { "preview": "data:image/png;base64,..." }
 ```
 
-Uses existing `despill_crop()` from engine.py. Validates bounds, clamps to image dimensions. Returns a single base64-encoded preview PNG.
+Uses existing `despill_crop()` from engine.py. Validation:
+- Return 400 if settings JSON is missing or unparseable
+- Return 400 if x/y/w/h are missing, non-numeric, or non-finite
+- Return 400 if bounds result in zero-area crop after clamping (w or h <= 0)
+- Clamp valid bounds to image dimensions before processing
+- Enforce minimum 20x20px crop (return 400 if clamped dimensions < 20)
 
 ### Files changed (backend)
 
@@ -200,10 +217,10 @@ A "Reset boxes" button in the Detection section of the settings panel. On click:
 | Change | Files | Scope |
 |--------|-------|-------|
 | Grid split fix | `grid.py` | ~25 lines new function + 4 lines integration |
-| Grid split tests | `test_grid.py` | 2 new tests |
+| Grid split tests | `test_grid.py` | 5 new tests |
 | Preview endpoint | `app.py` | ~15 lines new endpoint |
 | Preview endpoint test | `test_api.py` | 1 new test |
 | Box adjustment frontend | `app.js` | ~200 lines net new (interaction, state, rendering) |
 | Reset button | `index.html` | 1 button element |
 
-**Total: ~4 files modified, ~245 lines net new, 3 new tests.**
+**Total: ~4 files modified, ~260 lines net new, 6 new tests.**
