@@ -106,13 +106,45 @@
     // ---- Before/after toggle (hold Space) ----
     let _showingOriginal = false;
 
+    let _nudgeDebounce = null;
+
     window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        // Before/after toggle (Space)
         if (e.code === 'Space' && !e.repeat && sourceImage && analysisData && _lastSourceCrop) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             e.preventDefault();
             _showingOriginal = true;
             beforeAfterBadge.classList.remove('hidden');
             showOriginalInPreview();
+            return;
+        }
+
+        // Arrow key nudge
+        if (selectedCell >= 0 && selectedCell < editedCells.length && !activeDrag) {
+            const step = e.shiftKey ? 10 : 1;
+            const cell = editedCells[selectedCell];
+            let nudged = false;
+
+            if (e.code === 'ArrowLeft')  { cell.x -= step; nudged = true; }
+            if (e.code === 'ArrowRight') { cell.x += step; nudged = true; }
+            if (e.code === 'ArrowUp')    { cell.y -= step; nudged = true; }
+            if (e.code === 'ArrowDown')  { cell.y += step; nudged = true; }
+
+            if (nudged) {
+                e.preventDefault();
+                clampMove(cell);
+                previewImages[selectedCell] = null;
+                drawOverlay();
+                updatePreview();
+
+                const nudgedIndex = selectedCell;
+                clearTimeout(_nudgeDebounce);
+                _nudgeDebounce = setTimeout(() => {
+                    refreshCellPreview(nudgedIndex);
+                    rebuildCellThumbnail(nudgedIndex);
+                }, 300);
+            }
         }
     });
 
