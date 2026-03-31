@@ -110,6 +110,38 @@ def test_full_pipeline_single_fixture():
     assert green_fringe.sum() == 0, f"Green fringe pixels found: {green_fringe.sum()}"
 
 
+def test_erosion_scales_with_resolution():
+    """Larger images should get more erosion iterations, capped at 3."""
+    # Small image: 100x100 -> iterations=1
+    small_arr = np.zeros((100, 100, 4), dtype=np.uint8)
+    small_arr[:, :] = [0, 255, 0, 255]
+    small_arr[20:80, 20:80] = [200, 50, 50, 255]
+    small_img = Image.fromarray(small_arr, "RGBA")
+    small_result = despill_extract(small_img)
+    small_alpha = np.array(small_result)[:, :, 3]
+    small_visible = (small_alpha > 0).sum()
+
+    # Large image: 600x600 -> iterations=3 (600//200=3, capped at 3)
+    large_arr = np.zeros((600, 600, 4), dtype=np.uint8)
+    large_arr[:, :] = [0, 255, 0, 255]
+    large_arr[120:480, 120:480] = [200, 50, 50, 255]
+    large_img = Image.fromarray(large_arr, "RGBA")
+    large_result = despill_extract(large_img)
+    large_alpha = np.array(large_result)[:, :, 3]
+    large_visible = (large_alpha > 0).sum()
+
+    # The large image has a 360x360 subject (6x the 60x60 small subject).
+    # With static 1-iteration erosion, the large image loses only 2px each side -> ratio ~38.1.
+    # With proportional erosion (3 iterations on large vs 1 on small), 6px are stripped
+    # from each side of the large subject, reducing the ratio measurably below 38.0.
+    static_erosion_ratio = 38.0  # baseline: both images at iterations=1
+    visible_ratio = large_visible / small_visible
+    assert visible_ratio < static_erosion_ratio, (
+        f"Erosion should remove proportionally more from large image. "
+        f"Static-erosion baseline ratio: {static_erosion_ratio}, visible ratio: {visible_ratio:.1f}"
+    )
+
+
 def test_full_pipeline_grid_fixture():
     """End-to-end: load grid fixture -> analyze -> extract all cells."""
     from chromacut.grid import analyze_image

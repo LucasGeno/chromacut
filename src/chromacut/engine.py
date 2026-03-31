@@ -31,10 +31,12 @@ def despill_extract(
     # Despill: clamp green to max(R, B) — strict VFX standard, no buffer
     despilled_g = np.minimum(g, max_rb)
 
-    # 1px alpha erosion to kill outermost fringe ring
+    # Resolution-proportional alpha erosion to kill outermost fringe ring
     solid_mask = alpha > 128
     if solid_mask.any():
-        eroded = binary_erosion(solid_mask, iterations=1)
+        min_dim = min(px.shape[0], px.shape[1])
+        iterations = max(1, min(min_dim // 200, 3))
+        eroded = binary_erosion(solid_mask, iterations=iterations)
         fringe = solid_mask & ~eroded
         alpha[fringe] = 0
 
