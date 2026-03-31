@@ -2,7 +2,6 @@
 
 import io
 import json
-import re
 import zipfile
 from pathlib import Path
 
@@ -14,21 +13,13 @@ from PIL import Image
 
 from chromacut.engine import despill_extract, pad_and_resize
 from chromacut.grid import analyze_image
+from chromacut.utils import sanitize_name
 
 STATIC_DIR = Path(__file__).parent / "static"
 GUIDES_DIR = Path(__file__).parent / "guides"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 app = FastAPI(title="chromacut")
-
-
-def _sanitize_name(name: str) -> str:
-    """Sanitize a user-provided filename to prevent path traversal."""
-    # Strip path separators and parent-directory components
-    name = name.replace("/", "").replace("\\", "")
-    name = re.sub(r"\.\.+", "", name)
-    name = name.strip(". ")
-    return name or "icon"
 
 # Serve static files (CSS, JS)
 if STATIC_DIR.exists():
@@ -91,7 +82,7 @@ async def extract(file: UploadFile = File(...), settings: str = Form(...)):
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for cell_req in cells:
             idx = cell_req["index"]
-            name = _sanitize_name(cell_req.get("name", f"icon-{idx}"))
+            name = sanitize_name(cell_req.get("name", f"icon-{idx}"))
             cell_info = analyzed_cells.get(idx)
 
             if cell_info:
