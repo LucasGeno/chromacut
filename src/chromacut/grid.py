@@ -81,9 +81,7 @@ def detect_grid(
     min_row_gap = max(20, int(h * 0.03))
 
     # Find key-color columns and rows
-    key_mask = np.zeros((h, w), dtype=bool)
-    for y in range(h):
-        key_mask[y] = _is_key_color(arr[y : y + 1], key_color).flatten()
+    key_mask = _is_key_color(arr.reshape(-1, arr.shape[-1]), key_color).reshape(h, w)
 
     col_key_pct = key_mask.mean(axis=0)
     row_key_pct = key_mask.mean(axis=1)
