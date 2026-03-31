@@ -13,6 +13,8 @@
     let selectedCell = 0;
     let _hoveredCell = -1;
     let previewImages = [];  // HTMLImageElements from backend despill
+    let editedCells = [];     // deep copy of analysisData.cells, mutable for user edits
+    let activeDrag = null;    // { mode, handle, startPointer, startRect, cellIndex }
     let _lastSourceCrop = null;  // for before/after toggle
 
     // ---- DOM refs ----
@@ -186,6 +188,8 @@
         analysisData = null;
         selectedCell = 0;
         previewImages = [];
+        editedCells = [];
+        activeDrag = null;
         workspace.classList.add('hidden');
         dropZone.classList.remove('hidden');
         cellStrip.classList.add('hidden');
@@ -228,6 +232,9 @@
             const resp = await fetch('/api/analyze', { method: 'POST', body: form });
             analysisData = await resp.json();
 
+            // Deep copy cells for editing (analysisData.cells stays immutable)
+            editedCells = analysisData.cells.map(c => ({...c}));
+
             // Decode backend-rendered previews
             previewImages = [];
             if (analysisData.previews) {
@@ -260,7 +267,7 @@
         detectMode.textContent = analysisData.mode;
 
         // Show cell strip for grid mode
-        if (analysisData.cells.length > 1) {
+        if (editedCells.length > 1) {
             cellStrip.classList.remove('hidden');
             buildCellThumbnails();
         } else {
@@ -270,7 +277,7 @@
 
     // ---- Draw cell overlay on source ----
     function drawOverlay() {
-        if (!analysisData || !sourceImage) return;
+        if (!editedCells.length || !sourceImage) return;
         const ctx = overlayCanvas.getContext('2d');
         ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
@@ -279,7 +286,7 @@
 
         const hovered = typeof _hoveredCell !== 'undefined' ? _hoveredCell : -1;
 
-        analysisData.cells.forEach((cell, i) => {
+        editedCells.forEach((cell, i) => {
             const x = cell.x * scaleX;
             const y = cell.y * scaleY;
             const w = cell.w * scaleX;
@@ -310,9 +317,9 @@
     // ---- Build cell thumbnails ----
     function buildCellThumbnails() {
         cellThumbnails.innerHTML = '';
-        if (!analysisData || !sourceImage) return;
+        if (!editedCells.length || !sourceImage) return;
 
-        analysisData.cells.forEach((cell, i) => {
+        editedCells.forEach((cell, i) => {
             const thumb = document.createElement('div');
             thumb.className = 'cell-thumb' + (i === selectedCell ? ' active' : '');
 
@@ -346,9 +353,9 @@
     // ---- Build name fields ----
     function buildNameFields() {
         nameFields.innerHTML = '';
-        if (!analysisData) return;
+        if (!editedCells.length) return;
 
-        analysisData.cells.forEach((cell, i) => {
+        editedCells.forEach((cell, i) => {
             const row = document.createElement('div');
             row.className = 'name-row';
 
@@ -371,7 +378,8 @@
     function updatePreview() {
         if (!sourceImage || !analysisData) return;
 
-        const cell = analysisData.cells[selectedCell] || analysisData.cells[0];
+        const cellIdx = selectedCell >= 0 ? selectedCell : 0;
+        const cell = editedCells[cellIdx] || editedCells[0];
         if (!cell) return;
 
         // Store full cell bounds for before/after framing
@@ -507,7 +515,7 @@
         const cells = [];
         nameFields.querySelectorAll('input').forEach(input => {
             const idx = parseInt(input.dataset.index);
-            const cellData = analysisData?.cells[idx];
+            const cellData = editedCells[idx];
             cells.push({
                 index: idx,
                 name: input.value.trim() || `icon-${idx + 1}`,
