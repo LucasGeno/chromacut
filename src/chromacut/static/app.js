@@ -474,9 +474,15 @@
 
         const cells = [];
         nameFields.querySelectorAll('input').forEach(input => {
+            const idx = parseInt(input.dataset.index);
+            const cellData = analysisData?.cells[idx];
             cells.push({
-                index: parseInt(input.dataset.index),
-                name: input.value.trim() || `icon-${parseInt(input.dataset.index) + 1}`,
+                index: idx,
+                name: input.value.trim() || `icon-${idx + 1}`,
+                x: cellData?.x || 0,
+                y: cellData?.y || 0,
+                w: cellData?.w || 0,
+                h: cellData?.h || 0,
             });
         });
 

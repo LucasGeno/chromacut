@@ -66,7 +66,7 @@ def test_analyze_returns_previews():
 def test_extract_returns_zip():
     buf = _make_test_image()
     settings = json.dumps({
-        "cells": [{"index": 0, "name": "test-icon"}],
+        "cells": [{"index": 0, "name": "test-icon", "x": 0, "y": 0, "w": 100, "h": 100}],
         "output_size": 256,
         "padding": 0.15,
         "art_style": "pixel",
@@ -90,6 +90,29 @@ def test_extract_returns_zip():
         assert img.mode == "RGBA"
 
 
+def test_extract_with_explicit_bounds():
+    """Extract should work with explicit cell bounds without server-side analysis."""
+    buf = _make_test_image()
+    settings = json.dumps({
+        "cells": [{"index": 0, "name": "bounded-icon", "x": 20, "y": 20, "w": 60, "h": 60}],
+        "output_size": 256,
+        "padding": 0.15,
+        "art_style": "pixel",
+    })
+    resp = client.post(
+        "/api/extract",
+        files={"file": ("test.png", buf, "image/png")},
+        data={"settings": settings},
+    )
+    assert resp.status_code == 200
+    assert "application/zip" in resp.headers["content-type"]
+    z = zipfile.ZipFile(io.BytesIO(resp.content))
+    assert "bounded-icon.png" in z.namelist()
+    with z.open("bounded-icon.png") as f:
+        img = Image.open(f)
+        assert img.size == (256, 256)
+
+
 def test_guides_endpoint():
     resp = client.get("/api/guides/general-tips")
     assert resp.status_code == 200
@@ -101,7 +124,7 @@ def test_extract_sanitizes_traversal_names():
     """Path traversal in icon names must be stripped from zip entries."""
     buf = _make_test_image()
     settings = json.dumps({
-        "cells": [{"index": 0, "name": "../../../etc/owned"}],
+        "cells": [{"index": 0, "name": "../../../etc/owned", "x": 0, "y": 0, "w": 100, "h": 100}],
         "output_size": 64,
         "padding": 0.1,
         "art_style": "pixel",
