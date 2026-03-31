@@ -21,7 +21,8 @@
 | `src/chromacut/static/app.js` | Modify | editedCells state, overlay interaction, drag, keyboard nudge, preview refresh, reset |
 | `src/chromacut/static/index.html` | Modify | Reset boxes button |
 | `tests/test_grid.py` | Modify | 5 new grid split tests |
-| `tests/test_api.py` | Modify | 1 new preview endpoint test |
+| `tests/test_api.py` | Modify | 2 new preview endpoint tests |
+| `src/chromacut/static/style.css` | Modify | Reset button class |
 
 ---
 
@@ -271,7 +272,7 @@ Expected: All tests pass including the 5 new ones.
 - [ ] **Step 10: Run full test suite**
 
 Run: `cd /Users/Lucas.reed/dev/chromacut && .venv/bin/python -m pytest -v`
-Expected: All 40 existing + 5 new = 45 tests pass.
+Expected: All 40 existing + 5 new = 45 tests pass. (Grid tests may skip Gemini fixtures if not present — that's fine.)
 
 - [ ] **Step 11: Commit**
 
@@ -325,7 +326,7 @@ def test_preview_rejects_invalid_bounds():
     assert resp.status_code == 400
 ```
 
-Note: `base64` and `Image` imports should already be present from Task 4 of the previous plan.
+Note: `base64` and `from PIL import Image` imports should already be present in `test_api.py` from the v0.1 polish plan. If they're missing, add `import base64` and `from PIL import Image` to the imports at the top of the file.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -711,6 +712,14 @@ Add after the hit-test code:
             commitDrag();
         }
     });
+
+    overlayCanvas.addEventListener('pointercancel', () => {
+        if (activeDrag) commitDrag();
+    });
+
+    overlayCanvas.addEventListener('lostpointercapture', () => {
+        if (activeDrag) commitDrag();
+    });
 ```
 
 - [ ] **Step 4: Update `drawOverlay()` to render handles on selected cell**
@@ -763,11 +772,16 @@ Add after the CURSOR_MAP definition:
 ```javascript
     const MIN_CELL_DIM = 20;
 
-    function clampCell(cell) {
-        // Clamp position to image bounds
+    function clampMove(cell) {
+        // For move: preserve dimensions, only clamp position
+        cell.x = Math.max(0, Math.min(cell.x, sourceImage.width - cell.w));
+        cell.y = Math.max(0, Math.min(cell.y, sourceImage.height - cell.h));
+    }
+
+    function clampResize(cell) {
+        // For resize: clamp position and enforce minimum dimensions
         cell.x = Math.max(0, Math.min(cell.x, sourceImage.width - MIN_CELL_DIM));
         cell.y = Math.max(0, Math.min(cell.y, sourceImage.height - MIN_CELL_DIM));
-        // Clamp size to stay within image and enforce minimum
         cell.w = Math.max(MIN_CELL_DIM, Math.min(cell.w, sourceImage.width - cell.x));
         cell.h = Math.max(MIN_CELL_DIM, Math.min(cell.h, sourceImage.height - cell.y));
     }
@@ -791,7 +805,7 @@ Add after the clamp helper:
             cell.y = Math.round(startRect.y + dy);
             cell.w = startRect.w;
             cell.h = startRect.h;
-            clampCell(cell);
+            clampMove(cell);
         } else if (mode === 'resize') {
             let newX = startRect.x;
             let newY = startRect.y;
@@ -828,7 +842,7 @@ Add after the clamp helper:
             cell.y = newY;
             cell.w = newW;
             cell.h = newH;
-            clampCell(cell);
+            clampResize(cell);
         }
 
         // Invalidate backend preview for this cell (use fallback during drag)
@@ -963,16 +977,17 @@ In the existing `window.addEventListener('keydown', ...)` handler (currently lin
 
             if (nudged) {
                 e.preventDefault();
-                clampCell(cell);
+                clampMove(cell);
                 previewImages[selectedCell] = null;
                 drawOverlay();
                 updatePreview();
 
-                // Debounce backend preview refresh
+                // Debounce backend preview refresh — capture index to avoid stale closure
+                const nudgedIndex = selectedCell;
                 clearTimeout(_nudgeDebounce);
                 _nudgeDebounce = setTimeout(() => {
-                    refreshCellPreview(selectedCell);
-                    rebuildCellThumbnail(selectedCell);
+                    refreshCellPreview(nudgedIndex);
+                    rebuildCellThumbnail(nudgedIndex);
                 }, 300);
             }
         }
@@ -1006,8 +1021,30 @@ In `src/chromacut/static/index.html`, after the Detection section closing `</div
 
 ```html
                     <div class="settings-section">
-                        <button id="btn-reset-boxes" class="btn-icon-text" style="font-size: 11px; color: var(--text-dim); background: none; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer; width: 100%; font-family: var(--font-mono);">Reset boxes</button>
+                        <button id="btn-reset-boxes" class="btn-reset">Reset boxes</button>
                     </div>
+```
+
+Also add to `src/chromacut/static/style.css`, after the `.export-status` rule:
+
+```css
+.btn-reset {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-reset:hover {
+    color: var(--text);
+    border-color: var(--text-muted);
+}
 ```
 
 - [ ] **Step 2: Add reset handler in app.js**
@@ -1068,7 +1105,7 @@ git commit -m "feat(ui): add reset boxes button to restore auto-detected cell bo
 - [ ] **Step 1: Run full test suite**
 
 Run: `cd /Users/Lucas.reed/dev/chromacut && .venv/bin/python -m pytest -v`
-Expected: All tests pass (40 original + 5 grid + 2 preview = 47 tests).
+Expected: All tests pass (40 existing + 5 grid + 2 preview = 47 tests).
 
 - [ ] **Step 2: Start dev server and manually verify**
 
