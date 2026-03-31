@@ -90,7 +90,9 @@ def detect_grid(
     # Threshold 0.9: a column is "content" if >10% of pixels are non-key.
     # This handles icons that don't fill the full vertical space.
     col_groups = _find_content_bands(col_key_pct < 0.9, min_col_gap)
+    col_groups = _try_split_wide_bands(col_groups, col_key_pct, w)
     row_groups = _find_content_bands(row_key_pct < 0.9, min_row_gap)
+    row_groups = _try_split_wide_bands(row_groups, row_key_pct, h)
 
     # If no gaps found wide enough for grid, treat as single
     if len(col_groups) <= 1 and len(row_groups) <= 1:
@@ -142,6 +144,72 @@ def detect_grid(
         c.index = i
 
     return cells
+
+
+def _try_split_wide_bands(
+    bands: list[tuple[int, int]],
+    key_pct: np.ndarray,
+    total_dim: int | None = None,
+    _depth: int = 0,
+) -> list[tuple[int, int]]:
+    """Split wide content bands that likely contain merged icons.
+
+    Looks for key-color valleys within oversized bands and splits there.
+    """
+    if _depth >= 3 or len(bands) == 0:
+        return bands
+
+    widths = [e - s for s, e in bands]
+    targets = []
+
+    if len(bands) == 1:
+        dim = total_dim or len(key_pct)
+        if widths[0] > dim * 0.4:
+            targets = [0]
+    else:
+        median_w = sorted(widths)[len(widths) // 2]
+        targets = [i for i, w in enumerate(widths) if w > median_w * 1.8]
+
+    if not targets:
+        return bands
+
+    result = []
+    for i, (s, e) in enumerate(bands):
+        if i not in targets:
+            result.append((s, e))
+            continue
+
+        band_w = e - s
+        margin = max(1, int(band_w * 0.1))
+        interior = key_pct[s + margin : e - margin]
+
+        if len(interior) == 0:
+            result.append((s, e))
+            continue
+
+        best_offset = int(np.argmax(interior))
+        best_col = s + margin + best_offset
+        best_density = float(interior[best_offset])
+
+        if best_density < 0.8:
+            result.append((s, e))
+            continue
+
+        if best_col - s < margin or e - best_col < margin:
+            result.append((s, e))
+            continue
+
+        left = (s, best_col)
+        right = (best_col + 1, e)
+        if left[1] - left[0] < 20 or right[1] - right[0] < 20:
+            result.append((s, e))
+            continue
+
+        result.extend(_try_split_wide_bands([left], key_pct, total_dim, _depth + 1))
+        result.extend(_try_split_wide_bands([right], key_pct, total_dim, _depth + 1))
+
+    result.sort(key=lambda x: x[0])
+    return result
 
 
 def _find_content_bands(is_content: np.ndarray, min_gap: int) -> list[tuple[int, int]]:

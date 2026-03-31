@@ -148,3 +148,81 @@ def test_gemini_grid_cells_dont_overlap():
             overlap_x = max(0, min(a["x"] + a["w"], b["x"] + b["w"]) - max(a["x"], b["x"]))
             overlap_y = max(0, min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"]))
             assert overlap_x * overlap_y == 0, f"Cells {i} and {j} overlap"
+
+
+def _make_narrow_gap_grid(cols, cell_w=100, cell_h=100, inner_gap=5, margin=15, label_h=60):
+    """Create a grid with narrow inner gaps that _find_content_bands can't detect.
+
+    Uses gaps narrow enough (5px default) that they fall below the min_gap threshold,
+    causing adjacent cells to merge into one band.
+    """
+    w = margin + cols * cell_w + (cols - 1) * inner_gap + margin
+    h = cell_h + label_h
+    arr = np.zeros((h, w, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+
+    for c in range(cols):
+        x0 = margin + c * (cell_w + inner_gap)
+        arr[10:cell_h - 10, x0:x0 + cell_w] = [128, 128, 128, 255]
+
+    arr[-label_h:, :] = [0, 0, 0, 255]
+    return Image.fromarray(arr, "RGBA")
+
+
+def test_narrow_gap_grid_splits_merged_bands():
+    """4x1 grid with 5px inner gaps should detect 4 cells after post-split.
+    The gaps are too narrow for _find_content_bands (min_gap=20), so the
+    post-split pass must find the key-color valleys and split the merged band."""
+    img = _make_narrow_gap_grid(4, cell_w=100, inner_gap=5)
+    result = analyze_image(img)
+    assert len(result["cells"]) == 4, f"Expected 4 cells, got {len(result['cells'])}"
+
+
+def test_single_band_full_merge_splits():
+    """3x1 grid with 5px gaps — all merge into one band.
+    Single-band fallback (>40% width) should split into 3 cells."""
+    img = _make_narrow_gap_grid(3, cell_w=100, inner_gap=5, margin=10)
+    result = analyze_image(img)
+    assert len(result["cells"]) == 3, f"Expected 3 cells, got {len(result['cells'])}"
+
+
+def test_three_way_merge_recursive_split():
+    """3x1 grid inside one band requiring two recursive splits."""
+    img = _make_narrow_gap_grid(3, cell_w=120, inner_gap=6, margin=10)
+    result = analyze_image(img)
+    assert len(result["cells"]) == 3, f"Expected 3 cells, got {len(result['cells'])}"
+
+
+def test_wide_single_icon_not_falsely_split():
+    """A single 200px-wide icon should not be split."""
+    w = 300
+    h = 200 + 60
+    arr = np.zeros((h, w, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+    arr[20:180, 50:250] = [128, 128, 128, 255]
+    arr[-60:, :] = [0, 0, 0, 255]
+    img = Image.fromarray(arr, "RGBA")
+    result = analyze_image(img)
+    assert len(result["cells"]) == 1, f"Expected 1 cell, got {len(result['cells'])}"
+
+
+def test_row_narrow_gap_splits():
+    """2x2 grid with narrow row gaps (5px) but normal column gaps (50px).
+    Row post-split should handle the merge."""
+    cell_w, cell_h = 100, 100
+    col_gap, row_gap = 50, 5
+    w = 2 * cell_w + col_gap
+    h = 2 * cell_h + row_gap + 60
+    arr = np.zeros((h, w, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+
+    for r in range(2):
+        for c in range(2):
+            x0 = c * (cell_w + col_gap) + 10
+            y0 = r * (cell_h + row_gap) + 10
+            arr[y0:y0 + 80, x0:x0 + 80] = [128, 128, 128, 255]
+
+    arr[-60:, :] = [0, 0, 0, 255]
+    img = Image.fromarray(arr, "RGBA")
+    result = analyze_image(img)
+    assert len(result["cells"]) == 4, f"Expected 4 cells, got {len(result['cells'])}"
