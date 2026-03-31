@@ -96,10 +96,12 @@ def detect_grid(
 
     # If no gaps found wide enough for grid, treat as single
     if len(col_groups) <= 1 and len(row_groups) <= 1:
-        # Use pixel-level scan for precise single-icon bounds
+        # Use density-based scan: a row/col is "content" if >= 2% of pixels
+        # are non-key. This filters out shadow gradients and stray pixels.
         non_key = ~key_mask
-        content_rows_mask = np.any(non_key, axis=1)
-        content_cols_mask = np.any(non_key, axis=0)
+        content_density = 0.05
+        content_rows_mask = non_key.mean(axis=1) >= content_density
+        content_cols_mask = non_key.mean(axis=0) >= content_density
         content_rows_idx = np.where(content_rows_mask)[0]
         content_cols_idx = np.where(content_cols_mask)[0]
         if len(content_rows_idx) > 0 and len(content_cols_idx) > 0:
@@ -112,13 +114,14 @@ def detect_grid(
     idx = 0
     for ri, (ry1, ry2) in enumerate(row_groups):
         for ci, (cx1, cx2) in enumerate(col_groups):
-            # Expand cell bounds to capture all non-key pixels within this region.
-            # The band detection (0.9 threshold) finds the grid structure,
-            # but actual content may extend into sparser areas.
+            # Tighten cell bounds using density-based scan within each region.
+            # Requires >= 2% non-key pixels in a row/col to count as content.
+            # This filters out shadow gradients cast into the green background.
             region = key_mask[ry1:ry2, cx1:cx2]
             non_key_region = ~region
-            r_rows = np.any(non_key_region, axis=1)
-            r_cols = np.any(non_key_region, axis=0)
+            content_density = 0.05
+            r_rows = non_key_region.mean(axis=1) >= content_density
+            r_cols = non_key_region.mean(axis=0) >= content_density
             r_row_idx = np.where(r_rows)[0]
             r_col_idx = np.where(r_cols)[0]
             if len(r_row_idx) > 0 and len(r_col_idx) > 0:
