@@ -74,3 +74,37 @@ def pad_and_resize(
     canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
     canvas.paste(img, ((canvas_size - new_w) // 2, (canvas_size - new_h) // 2), img)
     return canvas
+
+
+def despill_crop(
+    img: Image.Image,
+    cell: dict,
+    max_preview_dim: int = 384,
+) -> Image.Image:
+    """Crop a cell from source, despill, and tight-crop to visible content.
+
+    Returns a tight-cropped RGBA image downscaled to max_preview_dim if needed.
+    """
+    cropped = img.crop((cell["x"], cell["y"], cell["x"] + cell["w"], cell["y"] + cell["h"]))
+    processed = despill_extract(cropped)
+
+    arr = np.array(processed)
+    alpha = arr[:, :, 3]
+    mask = alpha >= 128
+    if not mask.any():
+        return Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    tight = processed.crop((cmin, rmin, cmax + 1, rmax + 1))
+
+    # Downscale if larger than max_preview_dim
+    w, h = tight.size
+    if max(w, h) > max_preview_dim:
+        scale = max_preview_dim / max(w, h)
+        new_w, new_h = max(1, int(w * scale)), max(1, int(h * scale))
+        tight = tight.resize((new_w, new_h), Image.LANCZOS)
+
+    return tight

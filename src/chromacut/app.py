@@ -1,5 +1,6 @@
 """FastAPI application with extraction and guide endpoints."""
 
+import base64
 import io
 import json
 import zipfile
@@ -11,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 
-from chromacut.engine import despill_extract, pad_and_resize
+from chromacut.engine import despill_crop, despill_extract, pad_and_resize
 from chromacut.grid import analyze_image
 from chromacut.utils import sanitize_name
 
@@ -48,6 +49,18 @@ async def analyze(file: UploadFile = File(...)):
     except Exception:
         return JSONResponse({"error": "Invalid image file"}, status_code=400)
     result = analyze_image(img)
+
+    # Generate despilled preview crops for each cell
+    img_rgba = img.convert("RGBA")
+    previews = []
+    for cell in result["cells"]:
+        preview = despill_crop(img_rgba, cell)
+        buf_preview = io.BytesIO()
+        preview.save(buf_preview, "PNG")
+        b64 = base64.b64encode(buf_preview.getvalue()).decode("ascii")
+        previews.append(f"data:image/png;base64,{b64}")
+    result["previews"] = previews
+
     return JSONResponse(result)
 
 

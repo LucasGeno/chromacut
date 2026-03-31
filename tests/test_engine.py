@@ -142,6 +142,27 @@ def test_erosion_scales_with_resolution():
     )
 
 
+def test_despill_crop_tight_crops():
+    """despill_crop should return a tight-cropped RGBA image with no empty border."""
+    # 200x200 green image with 60x60 red square at (70, 70)
+    arr = np.zeros((200, 200, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+    arr[70:130, 70:130] = [200, 50, 50, 255]
+    img = Image.fromarray(arr, "RGBA")
+
+    from chromacut.engine import despill_crop
+    cell = {"x": 0, "y": 0, "w": 200, "h": 200}
+    result = despill_crop(img, cell)
+
+    result_arr = np.array(result)
+    # No fully transparent border rows
+    assert result_arr[0, :, 3].max() > 0, "Top row should have content"
+    assert result_arr[-1, :, 3].max() > 0, "Bottom row should have content"
+    assert result_arr[:, 0, 3].max() > 0, "Left column should have content"
+    assert result_arr[:, -1, 3].max() > 0, "Right column should have content"
+    assert result.mode == "RGBA"
+
+
 def test_full_pipeline_grid_fixture():
     """End-to-end: load grid fixture -> analyze -> extract all cells."""
     from chromacut.grid import analyze_image

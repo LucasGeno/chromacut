@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 import zipfile
@@ -39,6 +40,27 @@ def test_analyze_single_icon():
     assert "cells" in data
     assert "key_color" in data
     assert len(data["cells"]) >= 1
+    assert "previews" in data
+
+
+def test_analyze_returns_previews():
+    """Analyze response should include base64-encoded despilled previews."""
+    buf = _make_test_image()
+    resp = client.post("/api/analyze", files={"file": ("test.png", buf, "image/png")})
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert "previews" in data, "Response should contain previews key"
+    assert isinstance(data["previews"], list)
+    assert len(data["previews"]) == len(data["cells"])
+
+    # Decode first preview and verify it's a valid RGBA PNG
+    preview_b64 = data["previews"][0]
+    assert preview_b64.startswith("data:image/png;base64,")
+    raw = base64.b64decode(preview_b64.split(",", 1)[1])
+    preview_img = Image.open(io.BytesIO(raw))
+    assert preview_img.mode == "RGBA"
+    assert preview_img.width > 0 and preview_img.height > 0
 
 
 def test_extract_returns_zip():
