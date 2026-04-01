@@ -19,6 +19,7 @@ export const state = {
     aspectLocked: false,        // aspect ratio lock for resize
     undoStack: [],              // timeline of snapshots
     undoIndex: -1,              // current position in undoStack
+    activeSnapLines: [],        // transient: { axis: 'x'|'y', pos: number } during drag
 };
 
 /** Reset all state to initial values (called on new image load). */
@@ -36,6 +37,7 @@ export function resetState() {
     state.aspectLocked = false;
     state.undoStack = [];
     state.undoIndex = -1;
+    state.activeSnapLines = [];
 }
 
 /**

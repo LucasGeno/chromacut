@@ -32,10 +32,51 @@ function clampResize(cell) {
     cell.h = Math.max(MIN_CELL_DIM, Math.min(cell.h, state.sourceImage.height - cell.y));
 }
 
+// ---- Snap detection ----
+
+const SNAP_THRESHOLD = 5;
+
+/**
+ * Find the nearest snap target within threshold.
+ * @param {number} candidate - the edge/center value to test
+ * @param {number[]} targets - snap target values on the same axis
+ * @returns {{ snapped: boolean, value: number }}
+ */
+function findSnap(candidate, targets) {
+    let best = null;
+    let bestDist = SNAP_THRESHOLD + 1;
+    for (const t of targets) {
+        const dist = Math.abs(candidate - t);
+        if (dist <= SNAP_THRESHOLD && dist < bestDist) {
+            best = t;
+            bestDist = dist;
+        }
+    }
+    return best !== null ? { snapped: true, value: best } : { snapped: false, value: candidate };
+}
+
+/**
+ * Compute snap targets from all cells except the dragged one.
+ * Returns { x: number[], y: number[] } arrays of snap positions.
+ * @param {number} excludeIndex - index of the cell being dragged
+ * @returns {{ x: number[], y: number[] }}
+ */
+function getSnapTargets(excludeIndex) {
+    const xTargets = [];
+    const yTargets = [];
+    for (let i = 0; i < state.editedCells.length; i++) {
+        if (i === excludeIndex) continue;
+        const c = state.editedCells[i];
+        xTargets.push(c.x, c.x + c.w / 2, c.x + c.w);
+        yTargets.push(c.y, c.y + c.h / 2, c.y + c.h);
+    }
+    return { x: xTargets, y: yTargets };
+}
+
 // ---- Drag move/resize ----
 
 function handleDragMove(canvasX, canvasY, overlayCanvas) {
-    if (!state.activeDrag) return;
+    if (!state.activeDrag) { state.activeSnapLines = []; return; }
     const img = canvasToImage(canvasX, canvasY, overlayCanvas);
     const { mode, handle, startPointer, startRect, cellIndex } = state.activeDrag;
     const cell = state.editedCells[cellIndex];
@@ -47,6 +88,44 @@ function handleDragMove(canvasX, canvasY, overlayCanvas) {
         cell.y = Math.round(startRect.y + dy);
         cell.w = startRect.w;
         cell.h = startRect.h;
+
+        // Snap detection (before clamping)
+        state.activeSnapLines = [];
+        const targets = getSnapTargets(cellIndex);
+        if (targets.x.length > 0) {
+            // Try snapping each X edge/center, pick the one that actually snapped
+            const leftSnap   = findSnap(cell.x, targets.x);
+            const centerSnap = findSnap(cell.x + cell.w / 2, targets.x);
+            const rightSnap  = findSnap(cell.x + cell.w, targets.x);
+
+            // Pick the closest snap among the three
+            const xCandidates = [
+                leftSnap.snapped   ? { dist: Math.abs(cell.x - leftSnap.value),                    apply: () => { cell.x = leftSnap.value; }, pos: leftSnap.value } : null,
+                centerSnap.snapped ? { dist: Math.abs(cell.x + cell.w / 2 - centerSnap.value),     apply: () => { cell.x = centerSnap.value - cell.w / 2; }, pos: centerSnap.value } : null,
+                rightSnap.snapped  ? { dist: Math.abs(cell.x + cell.w - rightSnap.value),           apply: () => { cell.x = rightSnap.value - cell.w; }, pos: rightSnap.value } : null,
+            ].filter(Boolean);
+            if (xCandidates.length > 0) {
+                const best = xCandidates.reduce((a, b) => a.dist < b.dist ? a : b);
+                best.apply();
+                state.activeSnapLines.push({ axis: 'x', pos: best.pos });
+            }
+
+            const topSnap    = findSnap(cell.y, targets.y);
+            const midSnap    = findSnap(cell.y + cell.h / 2, targets.y);
+            const bottomSnap = findSnap(cell.y + cell.h, targets.y);
+
+            const yCandidates = [
+                topSnap.snapped    ? { dist: Math.abs(cell.y - topSnap.value),                    apply: () => { cell.y = topSnap.value; }, pos: topSnap.value } : null,
+                midSnap.snapped    ? { dist: Math.abs(cell.y + cell.h / 2 - midSnap.value),       apply: () => { cell.y = midSnap.value - cell.h / 2; }, pos: midSnap.value } : null,
+                bottomSnap.snapped ? { dist: Math.abs(cell.y + cell.h - bottomSnap.value),         apply: () => { cell.y = bottomSnap.value - cell.h; }, pos: bottomSnap.value } : null,
+            ].filter(Boolean);
+            if (yCandidates.length > 0) {
+                const best = yCandidates.reduce((a, b) => a.dist < b.dist ? a : b);
+                best.apply();
+                state.activeSnapLines.push({ axis: 'y', pos: best.pos });
+            }
+        }
+
         clampMove(cell);
     } else if (mode === 'resize') {
         let newX = startRect.x;
@@ -281,6 +360,7 @@ export function setupInteraction(dom) {
 
     // ---- Pointer: up / cancel / lost capture ----
     function commitDrag() {
+        state.activeSnapLines = [];
         const cellIndex = state.activeDrag?.cellIndex;
         state.activeDrag = null;
 
