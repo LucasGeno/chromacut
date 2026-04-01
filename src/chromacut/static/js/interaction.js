@@ -9,6 +9,7 @@
    ============================================================ */
 
 import { state, pushUndo, undo, redo } from './state.js';
+import { doExport } from './export.js';
 import { canvasToImage, hitTest, CURSOR_MAP, HANDLE_NAMES } from './overlay.js';
 import { updatePreview } from './preview.js';
 import { drawOverlay } from './overlay.js';
@@ -361,8 +362,20 @@ export function setupInteraction(dom) {
             return;
         }
 
-        // Cmd+E: export
-        if ((e.metaKey || e.ctrlKey) && e.code === 'KeyE') {
+        // Cmd+Shift+E: export selected cell only
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyE') {
+            e.preventDefault();
+            if (state.sourceImage && state.selectedCell >= 0) {
+                const btnExport = document.querySelector('#btn-export');
+                const exportStatus = document.querySelector('#export-status');
+                const nameFields = document.querySelector('#name-fields');
+                doExport(btnExport, exportStatus, paddingSlider, nameFields, true);
+            }
+            return;
+        }
+
+        // Cmd+E: export all (guard against shift to avoid intercepting Cmd+Shift+E)
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === 'KeyE') {
             e.preventDefault();
             if (state.sourceImage) {
                 document.querySelector('#btn-export')?.click();

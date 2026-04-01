@@ -47,13 +47,28 @@ export function getSettings(paddingSlider, nameFields) {
  * @param {HTMLInputElement} paddingSlider
  * @param {HTMLElement} nameFields
  */
-export async function doExport(btnExport, exportStatus, paddingSlider, nameFields) {
+export async function doExport(btnExport, exportStatus, paddingSlider, nameFields, selectedOnly = false) {
     if (!state.sourceFile) return;
 
     btnExport.classList.add('loading');
     exportStatus.textContent = 'Processing...';
 
-    const settings = getSettings(paddingSlider, nameFields);
+    let settings;
+    if (selectedOnly && state.selectedCell >= 0) {
+        const sizeBtn  = document.querySelector('[data-setting="output_size"] button.active');
+        const styleBtn = document.querySelector('[data-setting="art_style"] button.active');
+        const cell = state.editedCells[state.selectedCell];
+        const nameInput = nameFields.querySelector(`input[data-index="${state.selectedCell}"]`);
+        const name = nameInput?.value.trim() || `icon-${state.selectedCell + 1}`;
+        settings = {
+            cells: [{ index: state.selectedCell, name, x: cell.x, y: cell.y, w: cell.w, h: cell.h }],
+            output_size: parseInt(sizeBtn?.dataset.value || '512'),
+            padding:     parseInt(paddingSlider.value) / 100,
+            art_style:   styleBtn?.dataset.value || 'pixel',
+        };
+    } else {
+        settings = getSettings(paddingSlider, nameFields);
+    }
     const form = new FormData();
     form.append('file', state.sourceFile);
     form.append('settings', JSON.stringify(settings));
@@ -79,11 +94,16 @@ export async function doExport(btnExport, exportStatus, paddingSlider, nameField
         a.click();
         URL.revokeObjectURL(url);
 
-        const total = state.editedCells.length;
-        const exported = settings.cells.length;
-        exportStatus.textContent = exported < total
-            ? `Exported ${exported} of ${total} icon(s)`
-            : `Exported ${exported} icon(s)`;
+        if (selectedOnly) {
+            const name = settings.cells[0]?.name || 'icon';
+            exportStatus.textContent = `Exported ${name}.png`;
+        } else {
+            const total = state.editedCells.length;
+            const exported = settings.cells.length;
+            exportStatus.textContent = exported < total
+                ? `Exported ${exported} of ${total} icon(s)`
+                : `Exported ${exported} icon(s)`;
+        }
     } catch (err) {
         exportStatus.textContent = 'Export failed: ' + err.message;
     } finally {
