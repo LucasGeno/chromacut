@@ -1,7 +1,18 @@
 # Batch 1: Housekeeping & Developer Experience
 
 **Date:** 2026-04-01
-**Scope:** Five independent tasks to get the project properly set up for sustained development: CLAUDE.md, version bump, app.js decomposition, single-icon PNG download, and design system documentation.
+**Scope:** Five tasks to get the project properly set up for sustained development: CLAUDE.md, version bump, app.js decomposition, single-icon PNG download, and design system documentation.
+
+### Execution order
+
+Tasks have dependencies. Execute in this order:
+
+```
+{2: version bump, 5: design.md} → 3: JS decomposition → {1: CLAUDE.md, 4: single-PNG download}
+```
+
+- Tasks 2 and 5 are independent, can run first or in parallel
+- Task 3 (decomposition) must complete before Task 1 (CLAUDE.md references the module map) and Task 4 (modifies `export.js` which is created by Task 3)
 
 ---
 
@@ -92,9 +103,13 @@ export const state = {
 
 export function resetState() { /* clear all fields */ }
 export function initCells(analysisData) { /* deep copy cells, decode previews */ }
+export function snapshotCells() { /* return deep copy of editedCells for undo */ }
+export function restoreCells(snapshot) { /* replace editedCells from snapshot */ }
 ```
 
-All other modules import `{ state }` and read/write it directly. No event bus, no pub/sub.
+All other modules import `{ state }` and read/write properties directly. No event bus, no setters.
+
+The `snapshotCells`/`restoreCells` pair provides the hook Batch 2's undo/redo needs without wrapping every property in a setter. Only `editedCells` needs undo — transient state (selectedCell, hoveredCell, activeDrag) does not.
 
 ### Module responsibilities
 
@@ -131,7 +146,28 @@ Delete `src/chromacut/static/app.js` after the new modules are in place and veri
 
 ### Migration approach
 
-Pure refactor — no behavior changes. Every function moves to its module with identical logic. The Python test suite is unaffected. Manual verification confirms UI works identically.
+Pure refactor — no behavior changes. Every function moves to its module with identical logic. The Python test suite is unaffected.
+
+### Verification checklist
+
+After decomposition, verify each of these manually in the browser:
+
+1. App loads at `localhost:6100` with no console errors (check DevTools console)
+2. All ES module imports resolve (no 404s in Network tab)
+3. Drop zone accepts image drop → grid detection runs → overlay appears
+4. Clipboard paste (Cmd+V) loads image
+5. Cell selection works (click to select, click empty to deselect)
+6. Box adjustment works (drag to move, drag handles to resize)
+7. Arrow key nudge works (1px and Shift+10px)
+8. Preview panel renders with backend despill (not fallback green removal)
+9. Before/after toggle (hold Space) works
+10. Export produces correct zip (multi-cell) or PNG (single-cell, after Task 4)
+11. Settings changes (size, padding, style) update preview instantly
+12. Reset boxes button restores auto-detected bounds
+13. Guides tab loads and renders markdown
+14. Window resize redraws correctly
+
+Also run the full Python test suite to confirm API tests still pass.
 
 ### Files changed
 
@@ -184,7 +220,7 @@ No changes — CLI `extract` already writes individual files.
 
 ### Testing
 
-Update `test_extract_returns_zip` to verify multi-cell still returns zip. Add one test: single-cell extract returns `image/png` content-type with valid PNG data.
+Rename `test_extract_returns_zip` to `test_extract_multi_cell_returns_zip` (update settings to include 2+ cells with bounds). Add `test_extract_single_cell_returns_png`: single-cell settings, verify `image/png` content-type and valid PNG data.
 
 ---
 
