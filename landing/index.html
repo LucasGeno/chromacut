@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chromacut — AI-generated assets, production-ready in seconds</title>
+    <meta name="description" content="Generate clean, transparent game assets from AI in seconds. Pixel art, icons, sprites — no Photoshop required.">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="chromacut — AI-generated assets, production-ready in seconds">
+    <meta property="og:description" content="Generate clean, transparent game assets from AI. Pixel art, icons, sprites — no Photoshop required.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://chromacut.dev">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="chromacut — AI-generated assets, production-ready in seconds">
+    <meta name="twitter:description" content="Generate clean, transparent game assets from AI. No Photoshop required.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <span class="logo">chromacut</span>
+            <a href="https://github.com/LucasGeno/chromacut" class="nav-link" target="_blank" rel="noopener">GitHub</a>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>AI-generated assets,<br><span class="accent">production-ready in seconds.</span></h1>
+        <p class="subtitle">Describe the assets you need. Pick a style. Get clean, transparent PNGs — no Photoshop, no manual cleanup, no green-screen knowledge required.</p>
+        <div class="cta-group">
+            <a href="#waitlist" class="cta-primary">Get early access</a>
+            <a href="https://github.com/LucasGeno/chromacut" class="cta-secondary" target="_blank" rel="noopener">Try the CLI (free)</a>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2>How it works</h2>
+        <div class="steps">
+            <div class="step">
+                <span class="step-num">1</span>
+                <h3>Describe</h3>
+                <p>Type what you need: "medieval RPG potions, pixel art, 3x3 grid"</p>
+            </div>
+            <div class="step">
+                <span class="step-num">2</span>
+                <h3>Generate</h3>
+                <p>AI creates your assets on a green screen — optimized prompts handle the details</p>
+            </div>
+            <div class="step">
+                <span class="step-num">3</span>
+                <h3>Extract</h3>
+                <p>VFX-quality pipeline removes the background, cleans edges, exports transparent PNGs</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt">
+        <h2>Built for game developers</h2>
+        <div class="features">
+            <div class="feature">
+                <h3>VFX-quality extraction</h3>
+                <p>Industry-standard despill algorithm removes green fringe completely. No colored halos on dark backgrounds.</p>
+            </div>
+            <div class="feature">
+                <h3>Grid-aware</h3>
+                <p>Generate 9 icons in one image. Auto-detection splits them into individual transparent PNGs, named and ready.</p>
+            </div>
+            <div class="feature">
+                <h3>Style-aware output</h3>
+                <p>Pixel art stays pixel-perfect (nearest-neighbor). Illustrations stay smooth (Lanczos). You pick the style.</p>
+            </div>
+            <div class="feature">
+                <h3>Privacy-first</h3>
+                <p>Open-source CLI runs 100% offline. Cloud version for convenience when you want it.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="waitlist">
+        <h2>Get early access</h2>
+        <p class="section-sub">We're building the cloud version. Sign up to be first in line.</p>
+        <form class="waitlist-form" action="https://formspree.io/f/mdapdwno" method="POST">
+            <input type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+            <input type="hidden" name="_next" value="https://chromacut.dev#thanks">
+            <input type="text" name="_gotcha" style="display:none">
+            <button type="submit">Join waitlist</button>
+        </form>
+    </section>
+
+    <section class="section" id="thanks" style="display:none">
+        <h2 style="color: var(--accent);">You're on the list.</h2>
+        <p class="section-sub">We'll be in touch when the cloud version is ready.</p>
+    </section>
+    <script>if(location.hash==="#thanks")document.getElementById("thanks").style.display="block";</script>
+
+    <footer class="footer">
+        <p>
+            <a href="https://github.com/LucasGeno/chromacut" target="_blank" rel="noopener">GitHub</a>
+            &middot;
+            <span class="mono">MIT License</span>
+            &middot;
+            <span class="mono">pip install chromacut</span>
+        </p>
+    </footer>
+</body>
+</html>
