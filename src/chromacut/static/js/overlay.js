@@ -142,6 +142,13 @@ export function drawOverlay(overlayCanvas) {
             ctx.lineWidth = 1;
             ctx.setLineDash([6, 3]);
         }
+
+        // Hover fill highlight
+        if (i === hoveredCell && i !== selectedCell) {
+            ctx.fillStyle = excluded ? '#FF2D9B08' : '#FF2D9B11';
+            ctx.fillRect(x, y, w, h);
+        }
+
         ctx.strokeRect(x, y, w, h);
 
         ctx.setLineDash([]);
