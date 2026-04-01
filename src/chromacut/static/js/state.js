@@ -53,6 +53,10 @@ export function initCells(analysisData) {
             state.previewImages.push(img);
         }
     }
+    // Reset undo stack and push initial state
+    state.undoStack = [];
+    state.undoIndex = -1;
+    pushUndo();
 }
 
 /**

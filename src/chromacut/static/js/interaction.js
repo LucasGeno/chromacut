@@ -8,7 +8,7 @@
            cellThumbnails, beforeAfterBadge }
    ============================================================ */
 
-import { state } from './state.js';
+import { state, pushUndo, undo, redo } from './state.js';
 import { canvasToImage, hitTest, CURSOR_MAP, HANDLE_NAMES } from './overlay.js';
 import { updatePreview } from './preview.js';
 import { drawOverlay } from './overlay.js';
@@ -261,6 +261,7 @@ export function setupInteraction(dom) {
         if (cellIndex != null && cellIndex >= 0) {
             refreshCellPreview(cellIndex, state.sourceFile);
             rebuildCellThumbnail(cellIndex, cellThumbnails);
+            pushUndo();
         }
     }
 
@@ -270,6 +271,18 @@ export function setupInteraction(dom) {
 
     // ---- Keyboard: Space (before/after) + arrows (nudge) ----
     window.addEventListener('keydown', (e) => {
+        // Undo/redo (Cmd+Z / Cmd+Shift+Z)
+        if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ') {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            const changed = e.shiftKey ? redo() : undo();
+            if (changed) {
+                drawOverlay(overlayCanvas);
+                updatePreview(resultCanvas, paddingSlider);
+            }
+            return;
+        }
+
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
         // Before/after toggle (Space)
@@ -305,6 +318,7 @@ export function setupInteraction(dom) {
                 _nudgeDebounce = setTimeout(() => {
                     refreshCellPreview(nudgedIndex, state.sourceFile);
                     rebuildCellThumbnail(nudgedIndex, cellThumbnails);
+                    pushUndo();
                 }, 300);
             }
         }

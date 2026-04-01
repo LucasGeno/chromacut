@@ -5,7 +5,7 @@
    buildCellThumbnails, buildNameFields.
    ============================================================ */
 
-import { state, resetState, initCells } from './state.js';
+import { state, resetState, initCells, pushUndo } from './state.js';
 import { drawOverlay } from './overlay.js';
 import { setupInteraction, refreshCellPreview, rebuildCellThumbnail } from './interaction.js';
 import { updatePreview, quickGreenRemove } from './preview.js';
