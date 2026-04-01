@@ -296,6 +296,21 @@ export function setupInteraction(dom) {
 
     // ---- Keyboard: Space (before/after) + arrows (nudge) ----
     window.addEventListener('keydown', (e) => {
+        // ?: toggle shortcut help overlay
+        if (e.key === '?' || (e.shiftKey && e.code === 'Slash')) {
+            const overlay = document.querySelector('#shortcut-overlay');
+            if (!overlay) return;
+            if (overlay.classList.contains('hidden')) {
+                overlay.classList.remove('hidden');
+                overlay.offsetHeight;
+                overlay.classList.add('visible');
+            } else {
+                overlay.classList.remove('visible');
+                overlay.classList.add('hidden');
+            }
+            return;
+        }
+
         // Undo/redo (Cmd+Z / Cmd+Shift+Z)
         if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ') {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -434,4 +449,15 @@ export function setupInteraction(dom) {
             updatePreview(resultCanvas, paddingSlider);
         }
     });
+
+    // Shortcut overlay: click backdrop to close
+    const shortcutOverlay = document.querySelector('#shortcut-overlay');
+    if (shortcutOverlay) {
+        shortcutOverlay.addEventListener('click', (e) => {
+            if (e.target === shortcutOverlay) {
+                shortcutOverlay.classList.remove('visible');
+                shortcutOverlay.classList.add('hidden');
+            }
+        });
+    }
 }
