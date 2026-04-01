@@ -58,13 +58,34 @@ function handleDragMove(canvasX, canvasY, overlayCanvas) {
         if (handle.includes('n')) { newY = Math.round(startRect.y + dy); newH = Math.round(startRect.h - dy); }
         if (handle.includes('s')) { newH = Math.round(startRect.h + dy); }
 
+        // Aspect ratio lock
+        if (state.aspectLocked) {
+            const ratio = startRect.w / startRect.h;
+            const isCorner = (handle === 'nw' || handle === 'ne' || handle === 'se' || handle === 'sw');
+            if (isCorner) {
+                if (Math.abs(dx) >= Math.abs(dy)) {
+                    newH = Math.round(newW / ratio);
+                } else {
+                    newW = Math.round(newH * ratio);
+                }
+            } else if (handle === 'n' || handle === 's') {
+                newW = Math.round(newH * ratio);
+            } else {
+                newH = Math.round(newW / ratio);
+            }
+            if (handle.includes('w')) { newX = startRect.x + startRect.w - newW; }
+            if (handle.includes('n')) { newY = startRect.y + startRect.h - newH; }
+        }
+
         if (newW < MIN_CELL_DIM) {
             if (handle.includes('w')) newX = startRect.x + startRect.w - MIN_CELL_DIM;
             newW = MIN_CELL_DIM;
+            if (state.aspectLocked) newH = Math.round(newW / (startRect.w / startRect.h));
         }
         if (newH < MIN_CELL_DIM) {
             if (handle.includes('n')) newY = startRect.y + startRect.h - MIN_CELL_DIM;
             newH = MIN_CELL_DIM;
+            if (state.aspectLocked) newW = Math.round(newH * (startRect.w / startRect.h));
         }
 
         cell.x = newX;

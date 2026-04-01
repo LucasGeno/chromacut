@@ -122,6 +122,12 @@ cellInputY.addEventListener('change', handleCellInputChange);
 cellInputW.addEventListener('change', handleCellInputChange);
 cellInputH.addEventListener('change', handleCellInputChange);
 
+// ---- Aspect ratio lock toggle ----
+btnAspectLock.addEventListener('click', () => {
+    state.aspectLocked = !state.aspectLocked;
+    btnAspectLock.classList.toggle('active', state.aspectLocked);
+});
+
 // ---- Wire interaction module ----
 setupInteraction({
     overlayCanvas,
