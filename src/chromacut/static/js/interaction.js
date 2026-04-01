@@ -310,36 +310,7 @@ export function setupInteraction(dom) {
             return;
         }
 
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-        // Delete/Backspace: toggle cell exclusion
-        if ((e.code === 'Delete' || e.code === 'Backspace') && state.selectedCell >= 0) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            e.preventDefault();
-            if (state.excludedCells.has(state.selectedCell)) {
-                state.excludedCells.delete(state.selectedCell);
-            } else {
-                state.excludedCells.add(state.selectedCell);
-            }
-            pushUndo();
-            drawOverlay(overlayCanvas);
-            updatePreview(resultCanvas, paddingSlider);
-            if (updateCellPanel) updateCellPanel();
-            if (rebuildUI) rebuildUI();
-            return;
-        }
-
-        // Cmd+E: export
-        if ((e.metaKey || e.ctrlKey) && e.code === 'KeyE') {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            e.preventDefault();
-            if (state.sourceImage) {
-                document.querySelector('#btn-export')?.click();
-            }
-            return;
-        }
-
-        // Escape: close help overlay or deselect
+        // Escape: close help overlay or deselect (works always, even in inputs)
         if (e.code === 'Escape') {
             const overlay = document.querySelector('#shortcut-overlay');
             if (overlay && !overlay.classList.contains('hidden')) {
@@ -356,9 +327,36 @@ export function setupInteraction(dom) {
             return;
         }
 
+        // Global input guard — shortcuts below don't fire in text fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        // Delete/Backspace: toggle cell exclusion
+        if ((e.code === 'Delete' || e.code === 'Backspace') && state.selectedCell >= 0) {
+            e.preventDefault();
+            if (state.excludedCells.has(state.selectedCell)) {
+                state.excludedCells.delete(state.selectedCell);
+            } else {
+                state.excludedCells.add(state.selectedCell);
+            }
+            pushUndo();
+            drawOverlay(overlayCanvas);
+            updatePreview(resultCanvas, paddingSlider);
+            if (updateCellPanel) updateCellPanel();
+            if (rebuildUI) rebuildUI();
+            return;
+        }
+
+        // Cmd+E: export
+        if ((e.metaKey || e.ctrlKey) && e.code === 'KeyE') {
+            e.preventDefault();
+            if (state.sourceImage) {
+                document.querySelector('#btn-export')?.click();
+            }
+            return;
+        }
+
         // 1-9: select cell by number
         if (e.code >= 'Digit1' && e.code <= 'Digit9' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             const idx = parseInt(e.code.charAt(5)) - 1;
             if (state.sourceImage && idx < state.editedCells.length) {
                 state.selectedCell = idx;
@@ -374,7 +372,6 @@ export function setupInteraction(dom) {
 
         // [ / ]: adjust padding
         if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (!state.sourceImage) return;
             const slider = paddingSlider;
             const delta = e.code === 'BracketLeft' ? -1 : 1;
