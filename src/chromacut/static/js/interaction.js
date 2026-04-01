@@ -77,6 +77,7 @@ function handleDragMove(canvasX, canvasY, overlayCanvas) {
     state.previewImages[cellIndex] = null;
     drawOverlay(overlayCanvas);
     updatePreview(_interactionDom.resultCanvas, _interactionDom.paddingSlider);
+    if (_interactionDom.updateCellPanel) _interactionDom.updateCellPanel();
 }
 
 // ---- Preview refresh after drag/nudge ----
@@ -166,11 +167,12 @@ let _interactionDom = null;
  *   paddingSlider: HTMLInputElement,
  *   cellThumbnails: HTMLElement,
  *   beforeAfterBadge: HTMLElement,
+ *   updateCellPanel: Function,
  * }} dom
  */
 export function setupInteraction(dom) {
     _interactionDom = dom;
-    const { overlayCanvas, resultCanvas, paddingSlider, cellThumbnails, beforeAfterBadge } = dom;
+    const { overlayCanvas, resultCanvas, paddingSlider, cellThumbnails, beforeAfterBadge, updateCellPanel } = dom;
 
     // ---- Nudge debounce ----
     let _nudgeDebounce = null;
@@ -190,6 +192,7 @@ export function setupInteraction(dom) {
             if (state.selectedCell >= 0) {
                 state.selectedCell = -1;
                 drawOverlay(overlayCanvas);
+                updateCellPanel();
             }
             return;
         }
@@ -197,6 +200,7 @@ export function setupInteraction(dom) {
         state.selectedCell = hit.cellIndex;
         drawOverlay(overlayCanvas);
         updatePreview(resultCanvas, paddingSlider);
+        updateCellPanel();
 
         document.querySelectorAll('.cell-thumb').forEach((t, i) => {
             t.classList.toggle('active', i === state.selectedCell);
@@ -279,6 +283,7 @@ export function setupInteraction(dom) {
             if (changed) {
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
+                if (updateCellPanel) updateCellPanel();
             }
             return;
         }
@@ -312,6 +317,7 @@ export function setupInteraction(dom) {
                 state.previewImages[state.selectedCell] = null;
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
+                if (updateCellPanel) updateCellPanel();
 
                 const nudgedIndex = state.selectedCell;
                 clearTimeout(_nudgeDebounce);

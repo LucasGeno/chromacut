@@ -36,6 +36,92 @@ const beforeAfterBadge = $('#before-after-badge');
 const loadingOverlay = $('#loading-overlay');
 const btnResetBoxes  = $('#btn-reset-boxes');
 
+const selectedCellSection = $('#selected-cell-section');
+const selectedCellNum     = $('#selected-cell-num');
+const cellInputX          = $('#cell-input-x');
+const cellInputY          = $('#cell-input-y');
+const cellInputW          = $('#cell-input-w');
+const cellInputH          = $('#cell-input-h');
+const btnAspectLock       = $('#btn-aspect-lock');
+const btnResetSelected    = $('#btn-reset-selected');
+const excludedBadge       = $('#excluded-badge');
+const shortcutOverlay     = $('#shortcut-overlay');
+
+/** Show/hide the Selected Cell section and populate inputs. */
+function updateCellPanel() {
+    if (state.selectedCell < 0 || state.selectedCell >= state.editedCells.length) {
+        selectedCellSection.classList.add('hidden');
+        return;
+    }
+    selectedCellSection.classList.remove('hidden');
+    selectedCellNum.textContent = `#${state.selectedCell + 1}`;
+
+    const cell = state.editedCells[state.selectedCell];
+    cellInputX.value = Math.round(cell.x);
+    cellInputY.value = Math.round(cell.y);
+    cellInputW.value = Math.round(cell.w);
+    cellInputH.value = Math.round(cell.h);
+
+    // EXCLUDED badge
+    if (state.excludedCells.has(state.selectedCell)) {
+        excludedBadge.classList.remove('hidden');
+    } else {
+        excludedBadge.classList.add('hidden');
+    }
+}
+
+/** Handle change on a cell numeric input. */
+function handleCellInputChange() {
+    if (state.selectedCell < 0) return;
+    const cell = state.editedCells[state.selectedCell];
+    const imgW = state.sourceImage.width;
+    const imgH = state.sourceImage.height;
+
+    let x = parseInt(cellInputX.value);
+    let y = parseInt(cellInputY.value);
+    let w = parseInt(cellInputW.value);
+    let h = parseInt(cellInputH.value);
+
+    if (isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) {
+        updateCellPanel();
+        return;
+    }
+
+    // Aspect ratio lock: if W or H changed, adjust the other
+    if (state.aspectLocked && (w !== Math.round(cell.w) || h !== Math.round(cell.h))) {
+        const ratio = cell.w / cell.h;
+        if (w !== Math.round(cell.w)) {
+            h = Math.round(w / ratio);
+        } else {
+            w = Math.round(h * ratio);
+        }
+    }
+
+    // Clamp
+    w = Math.max(20, Math.min(w, imgW));
+    h = Math.max(20, Math.min(h, imgH));
+    x = Math.max(0, Math.min(x, imgW - w));
+    y = Math.max(0, Math.min(y, imgH - h));
+
+    cell.x = x;
+    cell.y = y;
+    cell.w = w;
+    cell.h = h;
+
+    state.previewImages[state.selectedCell] = null;
+    pushUndo();
+    drawOverlay(overlayCanvas);
+    updatePreview(resultCanvas, paddingSlider);
+    updateCellPanel();
+    rebuildCellThumbnail(state.selectedCell, cellThumbnails);
+    refreshCellPreview(state.selectedCell, state.sourceFile);
+}
+
+cellInputX.addEventListener('change', handleCellInputChange);
+cellInputY.addEventListener('change', handleCellInputChange);
+cellInputW.addEventListener('change', handleCellInputChange);
+cellInputH.addEventListener('change', handleCellInputChange);
+
 // ---- Wire interaction module ----
 setupInteraction({
     overlayCanvas,
@@ -43,6 +129,7 @@ setupInteraction({
     paddingSlider,
     cellThumbnails,
     beforeAfterBadge,
+    updateCellPanel,
 });
 
 // ---- Tab switching ----
@@ -99,6 +186,7 @@ if (btnResetBoxes) {
         buildCellThumbnails();
         buildNameFields();
         updatePreview(resultCanvas, paddingSlider);
+        updateCellPanel();
     });
 }
 
@@ -219,6 +307,7 @@ async function analyzeImage() {
         drawOverlay(overlayCanvas);
         buildNameFields();
         updatePreview(resultCanvas, paddingSlider);
+        updateCellPanel();
     } catch (err) {
         exportStatus.textContent = 'Analysis failed: ' + err.message;
     } finally {
@@ -276,6 +365,7 @@ function buildCellThumbnails() {
             thumb.classList.add('active');
             drawOverlay(overlayCanvas);
             updatePreview(resultCanvas, paddingSlider);
+            updateCellPanel();
         });
         cellThumbnails.appendChild(thumb);
     });
