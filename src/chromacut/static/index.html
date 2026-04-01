@@ -72,6 +72,7 @@
                                 <canvas id="result-canvas"></canvas>
                             </div>
                             <div id="before-after-badge" class="before-after-badge hidden">ORIGINAL</div>
+                            <div id="excluded-badge" class="excluded-badge hidden">EXCLUDED</div>
                         </div>
                     </div>
 
@@ -129,6 +130,34 @@
                         <button id="btn-reset-boxes" class="btn-reset">Reset boxes</button>
                     </div>
 
+                    <div id="selected-cell-section" class="settings-section selected-cell-section hidden">
+                        <h3 class="settings-title">Selected Cell <span id="selected-cell-num" class="selected-cell-num"></span></h3>
+                        <div class="cell-inputs-grid">
+                            <div class="cell-input-field">
+                                <label>X</label>
+                                <input type="number" id="cell-input-x" min="0" step="1">
+                            </div>
+                            <div class="cell-input-field">
+                                <label>Y</label>
+                                <input type="number" id="cell-input-y" min="0" step="1">
+                            </div>
+                            <div class="cell-input-field">
+                                <label>W</label>
+                                <input type="number" id="cell-input-w" min="20" step="1">
+                            </div>
+                            <div class="cell-input-field">
+                                <label>H</label>
+                                <input type="number" id="cell-input-h" min="20" step="1">
+                            </div>
+                        </div>
+                        <button id="btn-aspect-lock" class="aspect-lock" title="Lock aspect ratio">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path class="lock-linked" d="M4 5V4a3 3 0 0 1 6 0v1M3 6h8v6H3z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <button id="btn-reset-selected" class="btn-reset">Reset selected</button>
+                    </div>
+
                     <div class="settings-section">
                         <h3 class="settings-title">Names</h3>
                         <div id="name-fields" class="name-fields"></div>
@@ -164,6 +193,26 @@
             </article>
         </div>
     </main>
+
+    <!-- Shortcut help overlay -->
+    <div id="shortcut-overlay" class="shortcut-overlay hidden">
+        <div class="shortcut-card">
+            <h3 class="shortcut-title">Keyboard Shortcuts</h3>
+            <table class="shortcut-table">
+                <tr><td><kbd>1</kbd>-<kbd>9</kbd></td><td>Select cell</td></tr>
+                <tr><td><kbd>Arrow</kbd></td><td>Nudge 1px</td></tr>
+                <tr><td><kbd>Shift</kbd>+<kbd>Arrow</kbd></td><td>Nudge 10px</td></tr>
+                <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Adjust padding</td></tr>
+                <tr><td><kbd>Del</kbd></td><td>Exclude / include cell</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Deselect / close</td></tr>
+                <tr><td><kbd>Space</kbd></td><td>Before / after</td></tr>
+                <tr><td><kbd>Cmd</kbd>+<kbd>Z</kbd></td><td>Undo</td></tr>
+                <tr><td><kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Redo</td></tr>
+                <tr><td><kbd>Cmd</kbd>+<kbd>E</kbd></td><td>Export</td></tr>
+                <tr><td><kbd>?</kbd></td><td>This help</td></tr>
+            </table>
+        </div>
+    </div>
 
     <script type="module" src="/static/js/app.js"></script>
 </body>

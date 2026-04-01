@@ -640,6 +640,202 @@ input[type="range"]::-webkit-slider-thumb:hover {
     border-color: var(--text-muted);
 }
 
+/* ---- Selected Cell section ---- */
+.selected-cell-section {
+    transition: opacity 0.15s;
+}
+
+.selected-cell-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    font-weight: 400;
+}
+
+.cell-inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap-xs) var(--gap-sm);
+}
+
+.cell-input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cell-input-field label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-family: var(--font-mono);
+}
+
+.cell-input-field input {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.cell-input-field input::-webkit-inner-spin-button,
+.cell-input-field input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.cell-input-field input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+}
+
+/* Aspect ratio lock toggle */
+.aspect-lock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 24px;
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin: calc(-1 * var(--gap-xs)) 0;
+}
+
+.aspect-lock:hover {
+    color: var(--text-dim);
+    border-color: var(--border);
+}
+
+.aspect-lock.active {
+    color: var(--accent-text);
+    border-color: var(--accent);
+    background: var(--accent-glow);
+}
+
+/* ---- Excluded cell visuals ---- */
+.cell-thumb.excluded {
+    opacity: 0.3;
+    position: relative;
+}
+
+.cell-thumb.excluded::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        45deg,
+        transparent calc(50% - 0.5px),
+        var(--text-muted) calc(50% - 0.5px),
+        var(--text-muted) calc(50% + 0.5px),
+        transparent calc(50% + 0.5px)
+    );
+    pointer-events: none;
+}
+
+.name-row.excluded {
+    opacity: 0.3;
+}
+
+.name-row.excluded input {
+    pointer-events: none;
+}
+
+.excluded-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* ---- Shortcut help overlay ---- */
+.shortcut-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 12, 0.85);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+}
+
+.shortcut-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.shortcut-overlay.hidden {
+    display: none;
+}
+
+.shortcut-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--gap-lg);
+    max-width: 400px;
+    width: 90%;
+}
+
+.shortcut-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    padding-bottom: var(--gap-sm);
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: var(--gap-md);
+}
+
+.shortcut-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.shortcut-table td {
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.shortcut-table td:first-child {
+    width: 140px;
+    white-space: nowrap;
+}
+
+.shortcut-table kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+}
+
 /* ============================================================
    Guides Tab
    ============================================================ */
