@@ -329,6 +329,66 @@ export function setupInteraction(dom) {
             return;
         }
 
+        // Cmd+E: export
+        if ((e.metaKey || e.ctrlKey) && e.code === 'KeyE') {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            if (state.sourceImage) {
+                document.querySelector('#btn-export')?.click();
+            }
+            return;
+        }
+
+        // Escape: close help overlay or deselect
+        if (e.code === 'Escape') {
+            const overlay = document.querySelector('#shortcut-overlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('visible');
+                return;
+            }
+            if (state.selectedCell >= 0) {
+                state.selectedCell = -1;
+                drawOverlay(overlayCanvas);
+                updatePreview(resultCanvas, paddingSlider);
+                if (updateCellPanel) updateCellPanel();
+            }
+            return;
+        }
+
+        // 1-9: select cell by number
+        if (e.code >= 'Digit1' && e.code <= 'Digit9' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            const idx = parseInt(e.code.charAt(5)) - 1;
+            if (state.sourceImage && idx < state.editedCells.length) {
+                state.selectedCell = idx;
+                drawOverlay(overlayCanvas);
+                updatePreview(resultCanvas, paddingSlider);
+                if (updateCellPanel) updateCellPanel();
+                document.querySelectorAll('.cell-thumb').forEach((t, i) => {
+                    t.classList.toggle('active', i === state.selectedCell);
+                });
+            }
+            return;
+        }
+
+        // [ / ]: adjust padding
+        if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (!state.sourceImage) return;
+            const slider = paddingSlider;
+            const delta = e.code === 'BracketLeft' ? -1 : 1;
+            const newVal = Math.max(
+                parseInt(slider.min),
+                Math.min(parseInt(slider.max), parseInt(slider.value) + delta)
+            );
+            slider.value = newVal;
+            const valueLabel = slider.parentElement.querySelector('.mono-value');
+            if (valueLabel) valueLabel.textContent = newVal + '%';
+            updatePreview(resultCanvas, paddingSlider);
+            return;
+        }
+
         // Before/after toggle (Space)
         if (e.code === 'Space' && !e.repeat && state.sourceImage && state.analysisData && state.lastSourceCrop) {
             e.preventDefault();
