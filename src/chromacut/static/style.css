@@ -33,6 +33,9 @@
     --overlay: #FF2D9B;
     --overlay-dim: #FF2D9B88;
     --overlay-text: #FF2D9B;
+    --accent-snap: #44e04466;
+    --overlay-hover: #FF2D9B11;
+    --overlay-hover-dim: #FF2D9B08;
 
     /* Status */
     --danger: #e04444;

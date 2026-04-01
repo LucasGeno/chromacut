@@ -48,6 +48,7 @@ The accent color references the tool's purpose (chroma-key extraction). Desatura
 | `--accent-dim` | `#2a8a2a` | Export button background |
 | `--accent-glow` | `#44e04422` | Active tab/link backgrounds (translucent) |
 | `--accent-text` | `#66ff66` | Active tab text, active button text, code highlights |
+| `--accent-snap` | `#44e04466` | Snap guide lines during drag (translucent) |
 
 ### Overlay — Magenta
 
@@ -57,6 +58,8 @@ Chosen for maximum contrast against green-screen source images. Used only on the
 |-------|-----|-------|
 | `--overlay` | `#FF2D9B` | Selected cell border, handles, overlay text |
 | `--overlay-dim` | `#FF2D9B88` | Unselected cell borders |
+| `--overlay-hover` | `#FF2D9B11` | Hover fill on non-selected cells (very translucent) |
+| `--overlay-hover-dim` | `#FF2D9B08` | Hover fill on excluded cells |
 
 ### Status
 
