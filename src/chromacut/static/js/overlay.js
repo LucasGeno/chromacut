@@ -127,26 +127,28 @@ export function drawOverlay(overlayCanvas) {
         const y = cell.y * scaleY;
         const w = cell.w * scaleX;
         const h = cell.h * scaleY;
+        const excluded = state.excludedCells.has(i);
 
         if (i === selectedCell) {
-            ctx.strokeStyle = '#FF2D9B';
+            ctx.strokeStyle = excluded ? '#FF2D9B66' : '#FF2D9B';
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
         } else if (i === hoveredCell) {
-            ctx.strokeStyle = '#FF2D9BCC';
+            ctx.strokeStyle = excluded ? '#FF2D9B44' : '#FF2D9BCC';
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
         } else {
-            ctx.strokeStyle = '#FF2D9B88';
+            ctx.strokeStyle = excluded ? '#FF2D9B33' : '#FF2D9B88';
             ctx.lineWidth = 1;
             ctx.setLineDash([6, 3]);
         }
         ctx.strokeRect(x, y, w, h);
 
         ctx.setLineDash([]);
-        ctx.fillStyle = i === selectedCell ? '#FF2D9B' : (i === hoveredCell ? '#FF2D9BCC' : '#FF2D9B88');
+        ctx.fillStyle = ctx.strokeStyle;
         ctx.font = '11px "DM Mono", monospace';
-        ctx.fillText(i + 1, x + 4, y + 14);
+        const label = excluded ? `${i + 1}x` : `${i + 1}`;
+        ctx.fillText(label, x + 4, y + 14);
     });
 
     // Draw handles on selected cell

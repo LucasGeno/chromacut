@@ -311,6 +311,22 @@ export function setupInteraction(dom) {
 
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+        // Delete/Backspace: toggle cell exclusion
+        if ((e.code === 'Delete' || e.code === 'Backspace') && state.selectedCell >= 0) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            e.preventDefault();
+            if (state.excludedCells.has(state.selectedCell)) {
+                state.excludedCells.delete(state.selectedCell);
+            } else {
+                state.excludedCells.add(state.selectedCell);
+            }
+            pushUndo();
+            drawOverlay(overlayCanvas);
+            updatePreview(resultCanvas, paddingSlider);
+            if (updateCellPanel) updateCellPanel();
+            return;
+        }
+
         // Before/after toggle (Space)
         if (e.code === 'Space' && !e.repeat && state.sourceImage && state.analysisData && state.lastSourceCrop) {
             e.preventDefault();
