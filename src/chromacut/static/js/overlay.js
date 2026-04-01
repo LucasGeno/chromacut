@@ -174,4 +174,29 @@ export function drawOverlay(overlayCanvas) {
             ctx.strokeRect(cp.x - handleSize / 2, cp.y - handleSize / 2, handleSize, handleSize);
         }
     }
+
+    // Draw active snap lines
+    if (state.activeSnapLines.length > 0) {
+        ctx.strokeStyle = '#44e04466';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        for (const line of state.activeSnapLines) {
+            if (line.axis === 'x') {
+                const cx = line.pos * scaleX;
+                ctx.beginPath();
+                ctx.moveTo(cx, 0);
+                ctx.lineTo(cx, overlayCanvas.height);
+                ctx.stroke();
+            } else {
+                const cy = line.pos * scaleY;
+                ctx.beginPath();
+                ctx.moveTo(0, cy);
+                ctx.lineTo(overlayCanvas.width, cy);
+                ctx.stroke();
+            }
+        }
+
+        ctx.setLineDash([]);
+    }
 }
