@@ -28,23 +28,21 @@ Settings construction:
 
 ### Implementation
 
-New exported function in `export.js`:
-
-```js
-export async function doExportSelected(btnExport, exportStatus, paddingSlider, nameFields)
-```
-
-Extend `doExport` with a boolean `selectedOnly` parameter (default `false`). When `true`, build settings with only the selected cell instead of calling `getSettings()`. This avoids duplicating the fetch/download logic.
+Extend `doExport` with a boolean `selectedOnly` parameter (default `false`). When `true`, build settings with only the selected cell instead of calling `getSettings()`. No separate `doExportSelected` function — single code path avoids fetch/download duplication.
 
 ### Keyboard Handler
 
-In `interaction.js` keydown handler, add after the existing Cmd+E block:
+In `interaction.js` keydown handler, add the Cmd+Shift+E check **before** the existing Cmd+E block:
 
 ```js
+// Cmd+Shift+E: export selected cell (must precede Cmd+E)
 if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyE') { ... }
+
+// Cmd+E: export all (add !e.shiftKey guard)
+if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === 'KeyE') { ... }
 ```
 
-This must appear **before** the plain Cmd+E handler (so the more specific combo is matched first).
+The existing Cmd+E handler must gain a `!e.shiftKey` guard so it doesn't intercept the shift variant.
 
 ### Help Overlay
 
@@ -81,12 +79,7 @@ During `handleDragMove()`, after computing the new cell position but before clam
 5. For move: snapping left edge adjusts `cell.x`; snapping center adjusts `cell.x` to `target - cell.w/2`; snapping right adjusts `cell.x` to `target - cell.w`
 6. Record active snap lines for rendering
 
-**Resize drag:**
-1. Only the edge(s) being dragged are snap candidates
-2. For a resize handle that moves the east edge: snap `cell.x + cell.w` to nearby targets, adjust `cell.w`
-3. For a handle that moves the west edge: snap `cell.x` to nearby targets, adjust both `cell.x` and `cell.w`
-4. Same pattern for north/south on Y axis
-5. Corner handles snap both axes
+**Resize drag:** Not in this batch. Snap during resize interacts with aspect ratio lock in complex ways (snapping one axis changes the dimension, which forces the locked axis to recompute, potentially misaligning). Deferred until a clear conflict resolution model is designed.
 
 ### Snap Threshold
 
@@ -107,7 +100,7 @@ state.activeSnapLines: []  // array of { axis: 'x'|'y', pos: number } in image s
 
 In `drawOverlay()`, after rendering all cells and handles, draw active snap lines:
 
-- **Style:** 1px dashed `[4, 4]`, color `#44e04466` (translucent accent green)
+- **Style:** 1px dashed `[4, 4]`, color `var(--accent-snap)` (`#44e04466` — new design token)
 - **X-axis lines:** vertical line from `(pos, 0)` to `(pos, imageHeight)`, converted to canvas space
 - **Y-axis lines:** horizontal line from `(0, pos)` to `(imageWidth, pos)`, converted to canvas space
 - Only rendered when `state.activeSnapLines.length > 0`
@@ -121,7 +114,7 @@ Green was chosen for snap lines because:
 
 - **Single cell:** No snap targets exist. Snap logic short-circuits (no computation).
 - **Excluded cells:** Still act as snap targets. Their positions are valid alignment references even if they won't be exported.
-- **Aspect ratio lock + snap:** Snap applies after ratio enforcement. If snapping one axis would break the ratio, the snap on that axis is skipped.
+- **Aspect ratio lock + snap:** Not applicable — resize snap is deferred to a future batch.
 - **Self-snap:** The dragged cell is excluded from its own snap target list.
 
 ### Files Changed
@@ -138,14 +131,14 @@ Green was chosen for snap lines because:
 
 When a cell is hovered (not selected), draw a translucent magenta fill rectangle before drawing the border. This makes the entire cell area light up on hover, not just the border edge.
 
-### Fill Colors
+### Fill Colors (new design tokens)
 
-| State | Fill |
-|-------|------|
-| Hovered (not selected, not excluded) | `#FF2D9B11` |
-| Hovered + excluded | `#FF2D9B08` |
-| Selected | No fill (handles + solid border are sufficient, fill would obscure content during editing) |
-| Default (not hovered, not selected) | No fill |
+| State | Token | Value |
+|-------|-------|-------|
+| Hovered (not selected, not excluded) | `--overlay-hover` | `#FF2D9B11` |
+| Hovered + excluded | `--overlay-hover-dim` | `#FF2D9B08` |
+| Selected | — | No fill (handles + solid border are sufficient) |
+| Default (not hovered, not selected) | — | No fill |
 
 ### Implementation
 
@@ -164,22 +157,55 @@ if (i === hoveredCell && i !== selectedCell) {
 
 ---
 
+## Design Tokens
+
+Three new CSS custom properties added to `:root` in `style.css` and documented in `docs/design.md`:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--accent-snap` | `#44e04466` | Snap guide lines during drag |
+| `--overlay-hover` | `#FF2D9B11` | Hover fill on non-selected cells |
+| `--overlay-hover-dim` | `#FF2D9B08` | Hover fill on excluded cells |
+
+JS code reads these via hardcoded values matching the tokens (canvas API cannot read CSS vars directly, but the values are documented and tokened for design system consistency).
+
+## Testing
+
+### Snap Threshold (unit-testable, pure math)
+
+The snap detection logic is a pure function: given cell positions and a candidate position, return the nearest snap target within threshold. Extract this as a testable helper:
+
+```js
+function findSnap(candidate, targets, threshold) -> { snapped: boolean, value: number }
+```
+
+Tests (can be implemented as lightweight in-browser tests or as part of a future JS test setup):
+1. Two cells at x=100 and x=300. Dragged cell at x=295 → snaps to 300.
+2. Dragged cell at x=294 → does NOT snap (6px > 5px threshold).
+3. Multiple snap targets: closest one wins.
+4. No other cells: returns unsnapped.
+
+If no JS test runner exists in the project, these can be validated manually and documented as manual test steps in the plan.
+
 ## Files Changed Summary
 
 | File | Changes |
 |------|---------|
 | `state.js` | `activeSnapLines: []`, reset in `resetState()` |
-| `interaction.js` | Cmd+Shift+E handler, snap logic in `handleDragMove()`, clear snap lines in `commitDrag()` |
+| `interaction.js` | Cmd+Shift+E handler (before Cmd+E with `!e.shiftKey` guard), snap logic in `handleDragMove()` (move only), clear snap lines in `commitDrag()` |
 | `overlay.js` | Render snap lines, hover fill highlight |
 | `export.js` | Extend `doExport` with `selectedOnly` parameter |
 | `index.html` | Shortcut table row for Cmd+Shift+E |
+| `style.css` | New tokens: `--accent-snap`, `--overlay-hover`, `--overlay-hover-dim` |
+| `docs/design.md` | Document new tokens in Accent and Overlay sections |
 
-**Estimated: ~5 files modified, ~115 lines net new. No backend changes.**
+**Estimated: ~7 files modified, ~120 lines net new. No backend changes.**
 
 ## What's NOT in this batch
 
 - Multi-select (deferred — complexity outweighs value for typical 4-12 cell workflows)
 - Drag to reorder cells (deferred — cell order is cosmetic; users set custom names)
+- Snap during resize (deferred — aspect lock conflict resolution needs separate design)
 - Snap threshold configuration (YAGNI — 5px works for all tested image sizes)
 - Snap during nudge (nudge is 1px precision work where you know the target)
 - Dimension tooltip on hover (info already in Selected Cell panel)
