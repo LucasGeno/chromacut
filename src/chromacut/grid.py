@@ -15,6 +15,51 @@ class Cell:
     h: int
 
 
+def _overlaps_y(a: Cell, b: Cell) -> bool:
+    """Check if two cells share any vertical range (horizontally adjacent)."""
+    return a.y < b.y + b.h and b.y < a.y + a.h
+
+
+def _overlaps_x(a: Cell, b: Cell) -> bool:
+    """Check if two cells share any horizontal range (vertically adjacent)."""
+    return a.x < b.x + b.w and b.x < a.x + a.w
+
+
+def _add_cell_margins(cells: list[Cell], img_w: int, img_h: int) -> None:
+    """Expand cell bounds with neighbor-aware margin clamping.
+
+    Adds 3% of cell dimension per side (min 4px, max 20px), but caps
+    expansion at half the gap to the nearest neighbor to prevent overlap.
+    Mutates cells in place.
+    """
+    for c in cells:
+        mx = max(4, min(20, round(c.w * 0.03)))
+        my = max(4, min(20, round(c.h * 0.03)))
+
+        for other in cells:
+            if other is c:
+                continue
+            # Cap horizontal margin at half the gap to neighbor
+            if _overlaps_y(c, other):
+                if other.x > c.x + c.w:  # other is to the right
+                    mx = min(mx, (other.x - (c.x + c.w)) // 2)
+                elif c.x > other.x + other.w:  # other is to the left
+                    mx = min(mx, (c.x - (other.x + other.w)) // 2)
+            # Cap vertical margin at half the gap to neighbor
+            if _overlaps_x(c, other):
+                if other.y > c.y + c.h:  # other is below
+                    my = min(my, (other.y - (c.y + c.h)) // 2)
+                elif c.y > other.y + other.h:  # other is above
+                    my = min(my, (c.y - (other.y + other.h)) // 2)
+
+        mx = max(0, mx)
+        my = max(0, my)
+        c.x = max(0, c.x - mx)
+        c.y = max(0, c.y - my)
+        c.w = min(img_w - c.x, c.w + 2 * mx)
+        c.h = min(img_h - c.y, c.h + 2 * my)
+
+
 def detect_key_color(img: Image.Image, sample_size: int = 16) -> tuple[int, int, int]:
     """Detect the chroma-key color by sampling image corners."""
     arr = np.array(img.convert("RGB"))
@@ -105,9 +150,11 @@ def detect_grid(
         content_rows_idx = np.where(content_rows_mask)[0]
         content_cols_idx = np.where(content_cols_mask)[0]
         if len(content_rows_idx) > 0 and len(content_cols_idx) > 0:
-            return [Cell(0, int(content_cols_idx[0]), int(content_rows_idx[0]),
-                        int(content_cols_idx[-1] - content_cols_idx[0] + 1),
-                        int(content_rows_idx[-1] - content_rows_idx[0] + 1))]
+            single = [Cell(0, int(content_cols_idx[0]), int(content_rows_idx[0]),
+                          int(content_cols_idx[-1] - content_cols_idx[0] + 1),
+                          int(content_rows_idx[-1] - content_rows_idx[0] + 1))]
+            _add_cell_margins(single, w, h)
+            return single
         return [Cell(0, 0, 0, w, h)]
 
     cells = []
@@ -143,6 +190,7 @@ def detect_grid(
     for i, c in enumerate(cells):
         c.index = i
 
+    _add_cell_margins(cells, w, h)
     return cells
 
 
