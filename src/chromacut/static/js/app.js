@@ -97,11 +97,11 @@ function handleCellInputChange() {
         }
     }
 
-    // Clamp
-    w = Math.max(20, Math.min(w, imgW));
-    h = Math.max(20, Math.min(h, imgH));
-    x = Math.max(0, Math.min(x, imgW - w));
-    y = Math.max(0, Math.min(y, imgH - h));
+    // Clamp: position first (loose), then dimensions, then position tight
+    x = Math.max(0, Math.min(x, imgW - 20));
+    y = Math.max(0, Math.min(y, imgH - 20));
+    w = Math.max(20, Math.min(w, imgW - x));
+    h = Math.max(20, Math.min(h, imgH - y));
 
     cell.x = x;
     cell.y = y;
