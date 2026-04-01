@@ -18,6 +18,7 @@ export function getSettings(paddingSlider, nameFields) {
     const cells = [];
     nameFields.querySelectorAll('input').forEach(input => {
         const idx      = parseInt(input.dataset.index);
+        if (state.excludedCells.has(idx)) return;
         const cellData = state.editedCells[idx];
         cells.push({
             index: idx,
@@ -78,7 +79,11 @@ export async function doExport(btnExport, exportStatus, paddingSlider, nameField
         a.click();
         URL.revokeObjectURL(url);
 
-        exportStatus.textContent = `Exported ${settings.cells.length} icon(s)`;
+        const total = state.editedCells.length;
+        const exported = settings.cells.length;
+        exportStatus.textContent = exported < total
+            ? `Exported ${exported} of ${total} icon(s)`
+            : `Exported ${exported} icon(s)`;
     } catch (err) {
         exportStatus.textContent = 'Export failed: ' + err.message;
     } finally {

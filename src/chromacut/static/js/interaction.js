@@ -193,7 +193,7 @@ let _interactionDom = null;
  */
 export function setupInteraction(dom) {
     _interactionDom = dom;
-    const { overlayCanvas, resultCanvas, paddingSlider, cellThumbnails, beforeAfterBadge, updateCellPanel } = dom;
+    const { overlayCanvas, resultCanvas, paddingSlider, cellThumbnails, beforeAfterBadge, updateCellPanel, rebuildUI } = dom;
 
     // ---- Nudge debounce ----
     let _nudgeDebounce = null;
@@ -305,6 +305,7 @@ export function setupInteraction(dom) {
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
                 if (updateCellPanel) updateCellPanel();
+                if (rebuildUI) rebuildUI();
             }
             return;
         }
@@ -324,6 +325,7 @@ export function setupInteraction(dom) {
             drawOverlay(overlayCanvas);
             updatePreview(resultCanvas, paddingSlider);
             if (updateCellPanel) updateCellPanel();
+            if (rebuildUI) rebuildUI();
             return;
         }
 

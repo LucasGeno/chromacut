@@ -157,6 +157,7 @@ setupInteraction({
     cellThumbnails,
     beforeAfterBadge,
     updateCellPanel,
+    rebuildUI: () => { buildCellThumbnails(); buildNameFields(); },
 });
 
 // ---- Tab switching ----
@@ -367,7 +368,9 @@ function buildCellThumbnails() {
 
     state.editedCells.forEach((cell, i) => {
         const thumb = document.createElement('div');
-        thumb.className = 'cell-thumb' + (i === state.selectedCell ? ' active' : '');
+        thumb.className = 'cell-thumb'
+            + (i === state.selectedCell ? ' active' : '')
+            + (state.excludedCells.has(i) ? ' excluded' : '');
 
         const canvas = document.createElement('canvas');
         const size   = 68;
@@ -405,7 +408,8 @@ function buildNameFields() {
 
     state.editedCells.forEach((cell, i) => {
         const row = document.createElement('div');
-        row.className = 'name-row';
+        const excluded = state.excludedCells.has(i);
+        row.className = 'name-row' + (excluded ? ' excluded' : '');
 
         const idx = document.createElement('span');
         idx.className   = 'name-index';
@@ -415,6 +419,9 @@ function buildNameFields() {
         input.type  = 'text';
         input.value = `icon-${i + 1}`;
         input.dataset.index = i;
+        if (excluded) {
+            input.tabIndex = -1;
+        }
 
         row.appendChild(idx);
         row.appendChild(input);
