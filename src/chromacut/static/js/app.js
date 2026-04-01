@@ -128,6 +128,27 @@ btnAspectLock.addEventListener('click', () => {
     btnAspectLock.classList.toggle('active', state.aspectLocked);
 });
 
+// ---- Reset selected cell ----
+btnResetSelected.addEventListener('click', () => {
+    if (state.selectedCell < 0 || !state.analysisData) return;
+    const orig = state.analysisData.cells[state.selectedCell];
+    if (!orig) return;
+
+    const cell = state.editedCells[state.selectedCell];
+    cell.x = orig.x;
+    cell.y = orig.y;
+    cell.w = orig.w;
+    cell.h = orig.h;
+
+    state.previewImages[state.selectedCell] = null;
+    pushUndo();
+    drawOverlay(overlayCanvas);
+    updatePreview(resultCanvas, paddingSlider);
+    updateCellPanel();
+    rebuildCellThumbnail(state.selectedCell, cellThumbnails);
+    refreshCellPreview(state.selectedCell, state.sourceFile);
+});
+
 // ---- Wire interaction module ----
 setupInteraction({
     overlayCanvas,
