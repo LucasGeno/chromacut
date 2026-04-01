@@ -243,7 +243,7 @@ body {
 
 .preview-labels {
     display: flex;
-    gap: var(--gap-xl);
+    gap: var(--gap-md);
 }
 
 .preview-label {

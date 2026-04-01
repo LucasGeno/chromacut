@@ -68,7 +68,7 @@ def test_analyze_image_full_pipeline():
 
 
 def test_single_icon_bbox_includes_full_extent():
-    """Regression: single-icon bbox should not lose 1px from width/height."""
+    """Single-icon bbox should include content plus margin."""
     arr = np.zeros((100, 100, 4), dtype=np.uint8)
     arr[:, :] = [0, 255, 0, 255]
     arr[20:80, 20:80] = [128, 128, 128, 255]  # 60x60 subject
@@ -76,8 +76,50 @@ def test_single_icon_bbox_includes_full_extent():
     cells = detect_grid(img, key_color=(0, 255, 0), content_height=100)
     assert len(cells) == 1
     cell = cells[0]
-    assert cell.w == 60, f"Expected width 60, got {cell.w}"
-    assert cell.h == 60, f"Expected height 60, got {cell.h}"
+    # Content is 60x60. Margin = max(4, min(20, round(60*0.03))) = 4px per side.
+    # So bounds should be ~68x68 centered on the content.
+    assert cell.w >= 60, f"Width should be at least content width, got {cell.w}"
+    assert cell.h >= 60, f"Height should be at least content height, got {cell.h}"
+    assert cell.w <= 68, f"Width should not exceed content + 2*4px margin, got {cell.w}"
+    assert cell.h <= 68, f"Height should not exceed content + 2*4px margin, got {cell.h}"
+    assert cell.x <= 20, f"X should be at or before content start, got {cell.x}"
+    assert cell.y <= 20, f"Y should be at or before content start, got {cell.y}"
+
+
+def test_cell_margin_clamps_at_image_edge():
+    """Margin should not push cell bounds outside the image."""
+    arr = np.zeros((100, 100, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+    # Content block touching the top-left corner
+    arr[0:50, 0:50] = [128, 128, 128, 255]
+    img = Image.fromarray(arr, "RGBA")
+    cells = detect_grid(img, key_color=(0, 255, 0), content_height=100)
+    assert len(cells) == 1
+    cell = cells[0]
+    assert cell.x >= 0, f"X should not be negative, got {cell.x}"
+    assert cell.y >= 0, f"Y should not be negative, got {cell.y}"
+    assert cell.x + cell.w <= 100, f"Right edge exceeds image, got {cell.x + cell.w}"
+    assert cell.y + cell.h <= 100, f"Bottom edge exceeds image, got {cell.y + cell.h}"
+    # Should still have margin on the right/bottom sides
+    assert cell.w > 50, f"Width should include margin on right side, got {cell.w}"
+    assert cell.h > 50, f"Height should include margin on bottom side, got {cell.h}"
+
+
+def test_cell_margin_no_overlap():
+    """Neighbor-aware margin clamping should prevent cell overlap."""
+    # 2x1 grid: two 80px cells with only 10px gap between them
+    arr = np.zeros((100, 200, 4), dtype=np.uint8)
+    arr[:, :] = [0, 255, 0, 255]
+    arr[10:90, 10:90] = [128, 128, 128, 255]    # Left cell: 80x80
+    arr[10:90, 100:180] = [128, 128, 128, 255]   # Right cell: 80x80, 10px gap
+    img = Image.fromarray(arr, "RGBA")
+    cells = detect_grid(img, key_color=(0, 255, 0), content_height=100)
+    assert len(cells) == 2, f"Expected 2 cells, got {len(cells)}"
+    a, b = cells[0], cells[1]
+    # Ensure no overlap
+    if a.x > b.x:
+        a, b = b, a
+    assert a.x + a.w <= b.x, f"Cells overlap: a ends at {a.x + a.w}, b starts at {b.x}"
 
 
 def test_gemini_single_detection():
