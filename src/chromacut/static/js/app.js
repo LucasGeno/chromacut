@@ -158,6 +158,9 @@ setupInteraction({
     beforeAfterBadge,
     updateCellPanel,
     rebuildUI: () => { buildCellThumbnails(); buildNameFields(); },
+    btnExport,
+    exportStatus,
+    nameFields,
 });
 
 // ---- Tab switching ----

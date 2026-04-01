@@ -273,7 +273,7 @@ let _interactionDom = null;
  */
 export function setupInteraction(dom) {
     _interactionDom = dom;
-    const { overlayCanvas, resultCanvas, paddingSlider, cellThumbnails, beforeAfterBadge, updateCellPanel, rebuildUI } = dom;
+    const { overlayCanvas, resultCanvas, paddingSlider, cellThumbnails, beforeAfterBadge, updateCellPanel, rebuildUI, btnExport, exportStatus, nameFields } = dom;
 
     // ---- Nudge debounce ----
     let _nudgeDebounce = null;
@@ -445,10 +445,7 @@ export function setupInteraction(dom) {
         // Cmd+Shift+E: export selected cell only
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'KeyE') {
             e.preventDefault();
-            if (state.sourceImage && state.selectedCell >= 0) {
-                const btnExport = document.querySelector('#btn-export');
-                const exportStatus = document.querySelector('#export-status');
-                const nameFields = document.querySelector('#name-fields');
+            if (state.sourceImage && state.selectedCell >= 0 && !state.excludedCells.has(state.selectedCell)) {
                 doExport(btnExport, exportStatus, paddingSlider, nameFields, true);
             }
             return;
