@@ -4,9 +4,9 @@
 
 **Goal:** Ship a landing page at chromacut.dev that captures emails to validate demand (Gate A: 100 signups) before building the SaaS product.
 
-**Architecture:** Standalone static site deployed to Cloudflare Pages. Completely decoupled from the chromacut extraction tool — no modifications to `src/chromacut/` or `app.py`. Email capture via Formspree (hosted form backend with deduplication, spam filtering, and rate limiting built in). The landing page reuses chromacut's visual identity (dark theme, Outfit + DM Mono fonts, chroma green accent) but is a separate deployable.
+**Architecture:** Standalone static site deployed to Cloudflare Pages. No modifications to `src/chromacut/` or `app.py`. Email capture via Formspree paid tier ($8/mo — handles deduplication, spam filtering, rate limiting, and has no submission cap). The landing page mirrors chromacut's visual identity (dark theme, Outfit + DM Mono fonts, chroma green accent) by copying the hex values from `docs/design.md` — there is no shared CSS import mechanism, so values are duplicated. This is acceptable for a throwaway validation page.
 
-**Tech Stack:** HTML, CSS, vanilla JS. Hosted on Cloudflare Pages. Formspree for email capture.
+**Tech Stack:** HTML, CSS. Hosted on Cloudflare Pages. Formspree (paid) for email capture.
 
 **Spec reference:** `docs/superpowers/specs/2026-04-01-chromacut-saas-design.md` Section 5
 
@@ -34,20 +34,28 @@ No JavaScript file needed — the form submits directly to Formspree via HTML `a
 
 - [ ] **Step 1: Create Formspree form**
 
-Go to https://formspree.io and create a free account. Create a new form:
+Go to https://formspree.io and create an account. Sign up for the **paid tier ($8/mo)** — the free tier caps at 50 submissions/month which is below the 100-signup validation gate. Create a new form:
 - Name: "chromacut waitlist"
 - Forward to: your email address
 
 Copy the form endpoint URL. It will look like: `https://formspree.io/f/xABcDeFg`
 
-Formspree free tier includes:
-- 50 submissions/month (sufficient for validation)
+Formspree paid tier includes:
+- 1,000 submissions/month (well above Gate A target)
 - Spam filtering (reCAPTCHA, honeypot)
 - Deduplication
 - CSV export of submissions
 - Email notifications on new submissions
+- Custom redirect after submission
 
-- [ ] **Step 2: Note the form endpoint**
+- [ ] **Step 2: Configure custom redirect**
+
+In Formspree form settings, set the "Thank You" redirect URL to:
+`https://chromacut.dev#thanks`
+
+This sends users back to the landing page after submission instead of Formspree's generic white thank-you page.
+
+- [ ] **Step 3: Note the form endpoint**
 
 Save the endpoint URL — you'll use it in Task 2 as the form's `action` attribute.
 
@@ -161,11 +169,20 @@ Create `landing/index.html`:
         <!-- Formspree handles dedup, spam filtering, rate limiting -->
         <form class="waitlist-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
             <input type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+            <!-- Redirect back to landing page after submission -->
+            <input type="hidden" name="_next" value="https://chromacut.dev#thanks">
             <!-- Formspree honeypot for spam -->
             <input type="text" name="_gotcha" style="display:none">
             <button type="submit">Join waitlist</button>
         </form>
     </section>
+
+    <!-- Shown when redirected back after Formspree submission -->
+    <section class="section" id="thanks" style="display:none">
+        <h2 style="color: var(--accent);">You're on the list.</h2>
+        <p class="section-sub">We'll be in touch when the cloud version is ready.</p>
+    </section>
+    <script>if(location.hash==="#thanks")document.getElementById("thanks").style.display="block";</script>
 
     <footer class="footer">
         <p>
