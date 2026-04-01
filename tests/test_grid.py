@@ -150,6 +150,39 @@ def test_gemini_grid_cells_dont_overlap():
             assert overlap_x * overlap_y == 0, f"Cells {i} and {j} overlap"
 
 
+@pytest.mark.parametrize("fixture,expected_mode,expected_cells", [
+    ("grid-3x1-isometric.png", "grid", 3),
+    ("single-microscope.png", "single", 1),
+    ("grid-3x1-isometric-large.png", "grid", 3),
+    ("grid-4x3-animals.png", "grid", 12),
+    ("grid-4x2-services.png", "grid", 8),
+    ("single-desk.png", "single", 1),
+])
+def test_real_image_detection(fixture, expected_mode, expected_cells):
+    """Regression tests against real Gemini-generated images."""
+    path = Path(__file__).parent / "fixtures" / fixture
+    if not path.exists():
+        pytest.skip(f"Fixture {fixture} not provided")
+    img = Image.open(path)
+    result = analyze_image(img)
+    assert result["mode"] == expected_mode, f"Expected mode={expected_mode}, got {result['mode']}"
+    assert len(result["cells"]) == expected_cells, (
+        f"Expected {expected_cells} cells, got {len(result['cells'])}"
+    )
+    # All cells should be reasonably sized
+    for c in result["cells"]:
+        assert c["w"] > 50 and c["h"] > 50, f"Cell {c['index']} too small: {c['w']}x{c['h']}"
+    # No cells should overlap
+    cells = result["cells"]
+    for i, a in enumerate(cells):
+        for j, b in enumerate(cells):
+            if i >= j:
+                continue
+            ox = max(0, min(a["x"] + a["w"], b["x"] + b["w"]) - max(a["x"], b["x"]))
+            oy = max(0, min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"]))
+            assert ox * oy == 0, f"Cells {i} and {j} overlap"
+
+
 def _make_narrow_gap_grid(cols, cell_w=100, cell_h=100, inner_gap=5, margin=15, label_h=60):
     """Create a grid with narrow inner gaps that _find_content_bands can't detect.
 
