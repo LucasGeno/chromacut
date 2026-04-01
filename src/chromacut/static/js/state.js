@@ -15,6 +15,10 @@ export const state = {
     editedCells: [],        // deep copy of analysisData.cells, mutable
     activeDrag: null,       // { mode, handle, startPointer, startRect, cellIndex }
     lastSourceCrop: null,   // { x, y, w, h } for before/after toggle
+    excludedCells: new Set(),   // cell indices excluded from export
+    aspectLocked: false,        // aspect ratio lock for resize
+    undoStack: [],              // timeline of snapshots
+    undoIndex: -1,              // current position in undoStack
 };
 
 /** Reset all state to initial values (called on new image load). */
@@ -28,6 +32,10 @@ export function resetState() {
     state.editedCells = [];
     state.activeDrag = null;
     state.lastSourceCrop = null;
+    state.excludedCells = new Set();
+    state.aspectLocked = false;
+    state.undoStack = [];
+    state.undoIndex = -1;
 }
 
 /**
@@ -48,17 +56,61 @@ export function initCells(analysisData) {
 }
 
 /**
- * Return a deep copy of editedCells for undo snapshots (Batch 2).
- * @returns {Array}
+ * Return a snapshot of editedCells and excludedCells for undo.
+ * @returns {{ cells: Array, excludedCells: Set }}
  */
 export function snapshotCells() {
-    return state.editedCells.map(c => ({ ...c }));
+    return {
+        cells: state.editedCells.map(c => ({ ...c })),
+        excludedCells: new Set(state.excludedCells),
+    };
 }
 
 /**
- * Replace editedCells from a snapshot (Batch 2 redo/undo).
- * @param {Array} snapshot
+ * Replace editedCells and excludedCells from a snapshot.
+ * @param {{ cells: Array, excludedCells: Set }} snapshot
  */
 export function restoreCells(snapshot) {
-    state.editedCells = snapshot.map(c => ({ ...c }));
+    state.editedCells = snapshot.cells.map(c => ({ ...c }));
+    state.excludedCells = new Set(snapshot.excludedCells);
+}
+
+const UNDO_CAP = 50;
+
+/**
+ * Push the current cell state onto the undo stack.
+ * Truncates any redo history beyond the current index.
+ */
+export function pushUndo() {
+    if (state.undoIndex < state.undoStack.length - 1) {
+        state.undoStack.length = state.undoIndex + 1;
+    }
+    state.undoStack.push(snapshotCells());
+    state.undoIndex = state.undoStack.length - 1;
+    if (state.undoStack.length > UNDO_CAP) {
+        state.undoStack.shift();
+        state.undoIndex--;
+    }
+}
+
+/**
+ * Step backward in the undo stack.
+ * @returns {boolean} true if undo was applied, false if at the beginning
+ */
+export function undo() {
+    if (state.undoIndex <= 0) return false;
+    state.undoIndex--;
+    restoreCells(state.undoStack[state.undoIndex]);
+    return true;
+}
+
+/**
+ * Step forward in the undo stack.
+ * @returns {boolean} true if redo was applied, false if at the end
+ */
+export function redo() {
+    if (state.undoIndex >= state.undoStack.length - 1) return false;
+    state.undoIndex++;
+    restoreCells(state.undoStack[state.undoIndex]);
+    return true;
 }
