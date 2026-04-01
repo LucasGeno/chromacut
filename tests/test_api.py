@@ -63,10 +63,13 @@ def test_analyze_returns_previews():
     assert preview_img.width > 0 and preview_img.height > 0
 
 
-def test_extract_returns_zip():
+def test_extract_multi_cell_returns_zip():
     buf = _make_test_image()
     settings = json.dumps({
-        "cells": [{"index": 0, "name": "test-icon", "x": 0, "y": 0, "w": 100, "h": 100}],
+        "cells": [
+            {"index": 0, "name": "icon-1", "x": 0,  "y": 0, "w": 50, "h": 100},
+            {"index": 1, "name": "icon-2", "x": 50, "y": 0, "w": 50, "h": 100},
+        ],
         "output_size": 256,
         "padding": 0.15,
         "art_style": "pixel",
@@ -81,13 +84,35 @@ def test_extract_returns_zip():
 
     z = zipfile.ZipFile(io.BytesIO(resp.content))
     names = z.namelist()
-    assert "test-icon.png" in names
+    assert "icon-1.png" in names
+    assert "icon-2.png" in names
 
-    # Verify the extracted PNG is valid and correct size
-    with z.open("test-icon.png") as f:
+    with z.open("icon-1.png") as f:
         img = Image.open(f)
         assert img.size == (256, 256)
         assert img.mode == "RGBA"
+
+
+def test_extract_single_cell_returns_png():
+    buf = _make_test_image()
+    settings = json.dumps({
+        "cells": [{"index": 0, "name": "solo-icon", "x": 0, "y": 0, "w": 100, "h": 100}],
+        "output_size": 256,
+        "padding": 0.15,
+        "art_style": "pixel",
+    })
+    resp = client.post(
+        "/api/extract",
+        files={"file": ("test.png", buf, "image/png")},
+        data={"settings": settings},
+    )
+    assert resp.status_code == 200
+    assert "image/png" in resp.headers["content-type"]
+    assert "solo-icon.png" in resp.headers.get("content-disposition", "")
+
+    img = Image.open(io.BytesIO(resp.content))
+    assert img.size == (256, 256)
+    assert img.mode == "RGBA"
 
 
 def test_extract_with_explicit_bounds():
@@ -105,12 +130,9 @@ def test_extract_with_explicit_bounds():
         data={"settings": settings},
     )
     assert resp.status_code == 200
-    assert "application/zip" in resp.headers["content-type"]
-    z = zipfile.ZipFile(io.BytesIO(resp.content))
-    assert "bounded-icon.png" in z.namelist()
-    with z.open("bounded-icon.png") as f:
-        img = Image.open(f)
-        assert img.size == (256, 256)
+    assert "image/png" in resp.headers["content-type"]
+    img = Image.open(io.BytesIO(resp.content))
+    assert img.size == (256, 256)
 
 
 def test_guides_endpoint():
@@ -121,7 +143,7 @@ def test_guides_endpoint():
 
 
 def test_extract_sanitizes_traversal_names():
-    """Path traversal in icon names must be stripped from zip entries."""
+    """Path traversal in icon names must be stripped from the Content-Disposition header."""
     buf = _make_test_image()
     settings = json.dumps({
         "cells": [{"index": 0, "name": "../../../etc/owned", "x": 0, "y": 0, "w": 100, "h": 100}],
@@ -135,10 +157,10 @@ def test_extract_sanitizes_traversal_names():
         data={"settings": settings},
     )
     assert resp.status_code == 200
-    z = zipfile.ZipFile(io.BytesIO(resp.content))
-    for name in z.namelist():
-        assert ".." not in name, f"Zip entry contains traversal: {name}"
-        assert "/" not in name, f"Zip entry contains path separator: {name}"
+    assert "image/png" in resp.headers["content-type"]
+    disposition = resp.headers.get("content-disposition", "")
+    assert ".." not in disposition, f"Content-Disposition contains traversal: {disposition}"
+    assert "/" not in disposition.split("filename=", 1)[-1], f"Filename contains path separator: {disposition}"
 
 
 def test_analyze_invalid_image_returns_400():

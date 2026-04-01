@@ -87,31 +87,40 @@ async def extract(file: UploadFile = File(...), settings: str = Form(...)):
     cells = config.get("cells", [{"index": 0, "name": "icon"}])
 
     # Process each requested cell using client-provided bounds
+    processed_cells = []
+    for cell_req in cells:
+        name = sanitize_name(cell_req.get("name", f"icon-{cell_req.get('index', 0)}"))
+
+        cx = cell_req.get("x", 0)
+        cy = cell_req.get("y", 0)
+        cw = cell_req.get("w", img.width)
+        ch = cell_req.get("h", img.height)
+
+        cx = max(0, min(cx, img.width - 1))
+        cy = max(0, min(cy, img.height - 1))
+        cw = min(cw, img.width - cx)
+        ch = min(ch, img.height - cy)
+
+        cropped = img.crop((cx, cy, cx + cw, cy + ch))
+        processed = despill_extract(cropped)
+        final = pad_and_resize(processed, output_size, padding, resample)
+
+        png_buf = io.BytesIO()
+        final.save(png_buf, "PNG")
+        processed_cells.append((name, png_buf))
+
+    if len(processed_cells) == 1:
+        name, png_buf = processed_cells[0]
+        return Response(
+            content=png_buf.getvalue(),
+            media_type="image/png",
+            headers={"Content-Disposition": f"attachment; filename={name}.png"},
+        )
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for cell_req in cells:
-            name = sanitize_name(cell_req.get("name", f"icon-{cell_req.get('index', 0)}"))
-
-            # Use explicit bounds from client
-            cx = cell_req.get("x", 0)
-            cy = cell_req.get("y", 0)
-            cw = cell_req.get("w", img.width)
-            ch = cell_req.get("h", img.height)
-
-            # Clamp to image dimensions
-            cx = max(0, min(cx, img.width - 1))
-            cy = max(0, min(cy, img.height - 1))
-            cw = min(cw, img.width - cx)
-            ch = min(ch, img.height - cy)
-
-            cropped = img.crop((cx, cy, cx + cw, cy + ch))
-            processed = despill_extract(cropped)
-            final = pad_and_resize(processed, output_size, padding, resample)
-
-            png_buf = io.BytesIO()
-            final.save(png_buf, "PNG")
+        for name, png_buf in processed_cells:
             zf.writestr(f"{name}.png", png_buf.getvalue())
-
     buf.seek(0)
     return Response(
         content=buf.getvalue(),
