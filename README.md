@@ -8,13 +8,7 @@ Extract clean, transparent PNGs from AI-generated chroma-key images. A local web
 
 ## Install
 
-Requires Python 3.10+. No additional setup needed.
-
-```bash
-pip install chromacut
-```
-
-Or install the latest from source:
+Requires Python 3.10+. No additional setup needed. Install from source:
 
 ```bash
 pip install git+https://github.com/LucasGeno/chromacut.git
