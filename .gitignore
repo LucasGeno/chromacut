@@ -4,3 +4,7 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
+
+# Demo capture intermediates (raw video + poster source); final assets in
+# src/chromacut/static/ are committed. See scripts/CAPTURE.md.
+scripts/_capture/
