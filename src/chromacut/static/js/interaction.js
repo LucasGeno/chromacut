@@ -202,7 +202,7 @@ export async function refreshCellPreview(cellIndex, sourceFile) {
     form.append('settings', JSON.stringify({ x: cell.x, y: cell.y, w: cell.w, h: cell.h }));
 
     try {
-        const resp = await fetch('/api/preview', {
+        const resp = await fetch('api/preview', {
             method: 'POST',
             body: form,
             signal: _previewAbortController.signal,

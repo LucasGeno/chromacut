@@ -3,6 +3,8 @@
 import base64
 import io
 import json
+import re
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -19,6 +21,14 @@ from chromacut.utils import sanitize_name
 STATIC_DIR = Path(__file__).parent / "static"
 GUIDES_DIR = Path(__file__).parent / "guides"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+
+# Decompression-bomb guard: cap the total pixel count Pillow will decode and
+# promote its soft warning to a hard error. A small file can still expand to a
+# huge raster on load(); without this, the byte-size cap above wouldn't stop it.
+# ~64 MP (≈8000×8000) is far above any real chroma-key icon sheet. The resulting
+# DecompressionBombError/Warning is caught by each endpoint's try/except → 400.
+Image.MAX_IMAGE_PIXELS = 64_000_000
+warnings.simplefilter("error", Image.DecompressionBombWarning)
 
 app = FastAPI(title="chromacut")
 
@@ -114,7 +124,7 @@ async def extract(file: UploadFile = File(...), settings: str = Form(...)):
         return Response(
             content=png_buf.getvalue(),
             media_type="image/png",
-            headers={"Content-Disposition": f"attachment; filename={name}.png"},
+            headers={"Content-Disposition": f'attachment; filename="{name}.png"'},
         )
 
     buf = io.BytesIO()
@@ -171,6 +181,11 @@ async def preview(file: UploadFile = File(...), settings: str = Form(...)):
 
 @app.get("/api/guides/{topic}")
 async def get_guide(topic: str):
+    # Allowlist the topic: guide slugs are lowercase-alphanumeric + hyphen. This
+    # blocks path traversal (encoded dot-segments, separators) and bounds the
+    # cache keyspace before the topic touches the filesystem.
+    if not re.fullmatch(r"[a-z0-9-]{1,64}", topic):
+        return JSONResponse({"error": "Guide not found"}, status_code=404)
     if topic in _guide_cache:
         return JSONResponse({"html": _guide_cache[topic]})
 
