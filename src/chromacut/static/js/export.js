@@ -74,7 +74,7 @@ export async function doExport(btnExport, exportStatus, paddingSlider, nameField
     form.append('settings', JSON.stringify(settings));
 
     try {
-        const resp = await fetch('/api/extract', { method: 'POST', body: form });
+        const resp = await fetch('api/extract', { method: 'POST', body: form });
         if (!resp.ok) throw new Error(`Server error: ${resp.status}`);
 
         const contentType = resp.headers.get('content-type') || '';

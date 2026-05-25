@@ -3,6 +3,7 @@ import io
 import json
 import zipfile
 
+import pytest
 import numpy as np
 from PIL import Image
 from fastapi.testclient import TestClient
@@ -140,6 +141,20 @@ def test_guides_endpoint():
     assert resp.status_code == 200
     data = resp.json()
     assert "html" in data
+
+
+@pytest.mark.parametrize("bad_topic", [
+    "..%2f..%2fetc%2fpasswd",  # encoded traversal
+    "General-Tips",            # uppercase (allowlist is lowercase)
+    "tips.md",                 # dot/extension
+    "a" * 65,                  # over length cap
+])
+def test_guides_rejects_non_allowlisted_topic(bad_topic):
+    """The topic param is allowlisted ([a-z0-9-]{1,64}) before touching the
+    filesystem, so traversal / unexpected slugs 404 rather than reading arbitrary
+    paths or bloating the cache."""
+    resp = client.get(f"/api/guides/{bad_topic}")
+    assert resp.status_code == 404
 
 
 def test_extract_sanitizes_traversal_names():
