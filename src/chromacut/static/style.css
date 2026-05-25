@@ -67,6 +67,10 @@ html {
     font-size: 15px;
 }
 
+/* Never let a stray wide child (canvas, strip, overflow scroller) push the page
+   sideways — keeps content centered on zoom / narrow widths. */
+html, body { overflow-x: hidden; }
+
 body {
     font-family: var(--font-body);
     color: var(--text);
@@ -1522,3 +1526,29 @@ body.is-anon .gate-banner { display: block; }
 }
 .gate-banner__cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
 .gate-banner__cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ============================================================
+   Narrow-screen stacking — workspace (Extract) + guides layouts.
+   Both are side-by-side flex rows on desktop; on phones/tablets they
+   stack so neither column gets crushed and nothing scrolls sideways.
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Extract workspace: preview above, settings below (was side-by-side). */
+    .workspace-layout { flex-direction: column; height: auto; }
+    .settings-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--border, var(--border-subtle));
+    }
+    /* Guides: sidebar becomes a horizontal scroll strip above the article. */
+    .guides-layout { flex-direction: column; overflow: visible; }
+    .guides-sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border, var(--border-subtle));
+        gap: var(--space-sm);
+    }
+    .guide-link { white-space: nowrap; }
+}
