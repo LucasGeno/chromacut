@@ -4,13 +4,21 @@ Extract clean, transparent PNGs from AI-generated chroma-key images. A local web
 
 **What it does:** Drop or paste a green-screen image (single icon or grid), preview the extraction with VFX-quality despill, adjust cell bounds interactively, and export clean PNGs. No AI models, no cloud — just fast color-based keying with professional-quality edge refinement.
 
+**Try it without installing:** a hosted instance runs at **[lucasreed.me/chromacut](https://lucasreed.me/chromacut)**. The landing page and tool UI are public; running an extraction requires signing in (it's gated to keep anonymous compute abuse out). For unlimited, fully-local use with no sign-in, install it yourself below.
+
 ## Install
 
+Requires Python 3.10+. No additional setup needed. Install from source:
+
 ```bash
-pip install chromacut
+pip install git+https://github.com/LucasGeno/chromacut.git
 ```
 
-Requires Python 3.10+. No additional setup needed.
+Then launch the web UI:
+
+```bash
+chromacut                    # opens browser at localhost:6100
+```
 
 ## Usage
 
@@ -19,6 +27,7 @@ Requires Python 3.10+. No additional setup needed.
 ```bash
 chromacut                    # opens browser at localhost:6100
 chromacut --port 8080        # custom port
+chromacut --host 0.0.0.0     # bind all interfaces
 chromacut --no-open          # don't auto-open browser
 ```
 
@@ -104,4 +113,4 @@ python3 -m venv .venv
 
 ## License
 
-MIT
+[MIT](LICENSE) © Lucas Reed. Free to use, modify, and distribute.
