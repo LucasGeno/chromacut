@@ -1,0 +1,171 @@
+/* Design tokens — adopted from the lucasreed.me umbrella system.
+   Source of truth lives at compose/admin/app/static/tokens.css in lucas-platform;
+   the values are copied here verbatim so chromacut renders as an umbrella surface
+   whether it's served behind Caddy (with admin present) or run standalone.
+
+   Theme switches via the data-theme attribute on <html> (NOT a class).
+   Base font size is 15px — all rem values calculate from this. See DESIGN.md. */
+
+:root {
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* Type scale (at 15px base) */
+  --text-xs: 0.7rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.9rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #08080d;
+  --bg-secondary: #0e0e15;
+  --bg-surface: #14141e;
+  --bg-surface-hover: #1a1a26;
+  --bg-elevated: #1e1e2a;
+  --border-subtle: #1e1e2e;
+  --border-default: #2a2a3a;
+  --border-strong: #3a3a4e;
+  --text-primary: #e8e8f0;
+  --text-secondary: #9494ac;
+  --text-tertiary: #7a7a94;
+  --accent: #e5a547;
+  --accent-hover: #f0b960;
+  --accent-subtle: rgba(229, 165, 71, 0.12);
+  --accent-muted: rgba(229, 165, 71, 0.06);
+  --success: #34d399;
+  --success-subtle: rgba(52, 211, 153, 0.12);
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.12);
+  --warning: #fbbf24;
+  --warning-subtle: rgba(251, 191, 36, 0.12);
+  --info: #60a5fa;
+  --info-subtle: rgba(96, 165, 250, 0.12);
+  --dot-color: rgba(255, 255, 255, 0.03);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --input-bg: #12121a;
+  --code-bg: #0a0a10;
+  --glow-accent: 0 0 8px rgba(229, 165, 71, 0.3);
+  --glow-accent-sm: 0 0 4px rgba(229, 165, 71, 0.2);
+  --shadow-accent: 0 4px 12px rgba(229, 165, 71, 0.3);
+  --glow-success: 0 0 6px rgba(52, 211, 153, 0.5);
+  --glow-success-sm: 0 0 4px rgba(52, 211, 153, 0.3);
+  --glow-danger: 0 0 6px rgba(248, 113, 113, 0.4);
+  --danger-hover: #c81e1e;
+  --avatar-bg: #1e1b16;
+
+  /* chromacut-local: functional selection-box color (editor overlay).
+     Distinct from gold so it never blends with content; umbrella-coherent
+     cool tone aligned to --info. Kept out of the "accent = interaction" rule
+     because it is a domain editor cue, not a UI affordance. */
+  --select: #6aa9ff;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f7f6f3;
+  --bg-secondary: #efeeeb;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #faf9f7;
+  --bg-elevated: #ffffff;
+  --border-subtle: #eae9e4;
+  --border-default: #dddcd6;
+  --border-strong: #cccbc4;
+  --text-primary: #1c1b18;
+  --text-secondary: #5c5b54;
+  --text-tertiary: #706f68;
+  --accent: #b87514;
+  --accent-hover: #9e6510;
+  --accent-subtle: rgba(184, 117, 20, 0.10);
+  --accent-muted: rgba(184, 117, 20, 0.04);
+  --success: #059669;
+  --success-subtle: rgba(5, 150, 105, 0.08);
+  --danger: #dc2626;
+  --danger-subtle: rgba(220, 38, 38, 0.08);
+  --warning: #d97706;
+  --warning-subtle: rgba(217, 119, 6, 0.08);
+  --info: #2563eb;
+  --info-subtle: rgba(37, 99, 235, 0.08);
+  --dot-color: rgba(0, 0, 0, 0.035);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --input-bg: #f5f4f1;
+  --code-bg: #f0efeb;
+  --glow-accent: 0 0 6px rgba(184, 117, 20, 0.2);
+  --glow-accent-sm: 0 0 3px rgba(184, 117, 20, 0.15);
+  --shadow-accent: 0 4px 12px rgba(184, 117, 20, 0.15);
+  --glow-success: 0 0 5px rgba(5, 150, 105, 0.3);
+  --glow-success-sm: 0 0 3px rgba(5, 150, 105, 0.2);
+  --glow-danger: 0 0 5px rgba(220, 38, 38, 0.25);
+  --danger-hover: #b91c1c;
+  --avatar-bg: #d4b896;
+
+  --select: #2563eb;
+}
+
+/* Default theme = dark (DESIGN.md: dark-first). The inline head script sets
+   data-theme before paint; this fallback covers the no-JS / pre-script case so
+   the dark token block always resolves. */
+:root:not([data-theme]) {
+  color-scheme: dark;
+}
+:root:not([data-theme]) {
+  --bg-primary: #08080d;
+  --bg-secondary: #0e0e15;
+  --bg-surface: #14141e;
+  --bg-surface-hover: #1a1a26;
+  --bg-elevated: #1e1e2a;
+  --border-subtle: #1e1e2e;
+  --border-default: #2a2a3a;
+  --border-strong: #3a3a4e;
+  --text-primary: #e8e8f0;
+  --text-secondary: #9494ac;
+  --text-tertiary: #7a7a94;
+  --accent: #e5a547;
+  --accent-hover: #f0b960;
+  --accent-subtle: rgba(229, 165, 71, 0.12);
+  --accent-muted: rgba(229, 165, 71, 0.06);
+  --success: #34d399;
+  --success-subtle: rgba(52, 211, 153, 0.12);
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.12);
+  --warning: #fbbf24;
+  --warning-subtle: rgba(251, 191, 36, 0.12);
+  --info: #60a5fa;
+  --info-subtle: rgba(96, 165, 250, 0.12);
+  --dot-color: rgba(255, 255, 255, 0.03);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --input-bg: #12121a;
+  --code-bg: #0a0a10;
+  --glow-accent: 0 0 8px rgba(229, 165, 71, 0.3);
+  --glow-accent-sm: 0 0 4px rgba(229, 165, 71, 0.2);
+  --shadow-accent: 0 4px 12px rgba(229, 165, 71, 0.3);
+  --glow-success: 0 0 6px rgba(52, 211, 153, 0.5);
+  --glow-success-sm: 0 0 4px rgba(52, 211, 153, 0.3);
+  --glow-danger: 0 0 6px rgba(248, 113, 113, 0.4);
+  --danger-hover: #c81e1e;
+  --avatar-bg: #1e1b16;
+  --select: #6aa9ff;
+}

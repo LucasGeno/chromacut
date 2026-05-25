@@ -3,25 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>chromacut</title>
+    <title>chromacut — clean PNGs from chroma-key art</title>
+    <meta name="description" content="Drop an AI-generated chroma-key image, get clean transparent PNGs. Auto-detects the grid, despills the edges, exports icon-ready files.">
+    <!-- Theme init before stylesheets to prevent FOUC (umbrella pattern). -->
+    <script>
+      (function () {
+        var stored = null;
+        try { stored = localStorage.getItem('theme'); } catch (e) {}
+        var prefersDark = !window.matchMedia
+          || window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = stored || (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- chromacut's own tokens (RELATIVE) — umbrella values, works standalone. -->
+    <link rel="stylesheet" href="static/tokens.css">
     <link rel="stylesheet" href="static/style.css">
+    <!-- Shared umbrella chip (ABSOLUTE) — served by admin behind the umbrella;
+         404s harmlessly when run standalone (chip simply doesn't hydrate). -->
+    <link rel="stylesheet" href="/static/_shared/identity-chip.css">
+    <script src="/static/_shared/identity-chip.js" defer></script>
 </head>
 <body>
     <!-- Header -->
     <header class="app-header">
-        <div class="logo">
+        <a class="logo" href="#top">
             <span class="logo-icon"></span>
             <h1>chromacut</h1>
-        </div>
+        </a>
         <nav class="tab-bar">
             <button class="tab active" data-tab="extract">Extract</button>
             <button class="tab" data-tab="guides">Guides</button>
         </nav>
-        <div class="header-spacer"></div>
+        <div class="header-spacer">
+            <!-- Theme toggle (umbrella sun/moon glyphs) -->
+            <button class="theme-toggle" data-action="toggle-theme" aria-label="Toggle theme">
+                <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+            <!-- Return to the umbrella -->
+            <a class="umbrella-home" href="/" aria-label="Back to lucasreed.me">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="umbrella-home__label">lucasreed.me</span>
+            </a>
+            <!-- Identity chip placeholder — hydrated by identity-chip.js behind the umbrella. -->
+            <a class="identity-chip" href="/login" data-state="loading" aria-label="Sign in">
+                <img class="identity-chip__avatar" src="/static/_shared/_guest.png" alt="" width="24" height="24">
+                <span class="identity-chip__label">Sign in</span>
+            </a>
+        </div>
     </header>
+
+    <!-- Public landing (visible to everyone; shown only on the Extract tab) -->
+    <section id="landing" class="landing" data-tab-panel="extract">
+        <div class="landing-hero" id="top">
+            <p class="landing-eyebrow">// chroma-key → transparent PNG</p>
+            <h2>Clean icons out of <span class="accent">green-screen</span> art.</h2>
+            <p class="landing-lede">
+                Drop an AI-generated chroma-key sheet. Chromacut finds the grid,
+                lifts each piece off its background, and hands you ready-to-use
+                transparent PNGs.
+            </p>
+            <div class="landing-hero-divider"></div>
+        </div>
+
+        <figure class="chromacut-demo" aria-label="Chromacut turning an AI chroma-key grid into clean transparent PNGs">
+            <video
+                class="chromacut-demo__video"
+                autoplay loop muted playsinline preload="metadata"
+                poster="static/chromacut-demo-poster.webp"
+                width="960" height="576">
+                <source src="static/chromacut-demo.mp4" type="video/mp4; codecs=av01" />
+            </video>
+            <img
+                class="chromacut-demo__poster"
+                src="static/chromacut-demo-poster.webp"
+                alt="A green-screen grid of three AI icons on the left, the first extracted as a clean transparent PNG on a checkerboard on the right."
+                width="960" height="576" loading="lazy" decoding="async" />
+            <figcaption class="chromacut-demo__caption">The real tool, end to end — upload, auto-detect, extract.</figcaption>
+        </figure>
+
+        <div class="how-it-works">
+            <h3>How it works</h3>
+            <div class="how-grid">
+                <div class="how-step">
+                    <div class="how-step__num">01</div>
+                    <h4>Drop the sheet</h4>
+                    <p>Paste or drop a chroma-key image — one icon or a whole grid on a solid background.</p>
+                </div>
+                <div class="how-step">
+                    <div class="how-step__num">02</div>
+                    <h4>It finds the cells</h4>
+                    <p>The key color and grid are detected automatically. Nudge the boxes if you want them tighter.</p>
+                </div>
+                <div class="how-step">
+                    <div class="how-step__num">03</div>
+                    <h4>Export clean PNGs</h4>
+                    <p>Edges are despilled and padded, then exported as transparent PNGs — one file or a zip.</p>
+                </div>
+            </div>
+            <div class="landing-cta">
+                <button class="landing-btn landing-btn--primary" data-action="open-tool" type="button">Try it below</button>
+                <button class="landing-btn landing-btn--ghost" data-action="open-guides" type="button">Read the guides</button>
+            </div>
+        </div>
+    </section>
 
     <!-- Extract Tab -->
     <main id="tab-extract" class="tab-content active">
@@ -37,6 +136,12 @@
                 <p class="drop-text">Drop or paste a chroma-key image here</p>
                 <p class="drop-hint">PNG or JPG with solid-color background</p>
                 <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+            <!-- Anonymous gate: explains the sign-in requirement up front. -->
+            <div class="gate-banner" id="gate-banner">
+                <div class="gate-banner__title">Sign in to use chromacut</div>
+                <div class="gate-banner__body">Extraction runs on the server, so it's reserved for signed-in visitors. The demo and guides are open to everyone.</div>
+                <a class="gate-banner__cta" id="gate-banner-cta" href="/login">Sign in</a>
             </div>
         </div>
 
@@ -171,6 +276,10 @@
                             </svg>
                             Export
                         </button>
+                        <div class="gate-note" id="export-gate-note">
+                            <span class="gate-note__dot"></span>
+                            <span>Sign in to export — extraction runs server-side.</span>
+                        </div>
                         <div id="export-status" class="export-status"></div>
                     </div>
                 </aside>
