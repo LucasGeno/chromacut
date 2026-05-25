@@ -1533,15 +1533,19 @@ body.is-anon .gate-banner { display: block; }
    stack so neither column gets crushed and nothing scrolls sideways.
    ============================================================ */
 @media (max-width: 768px) {
-    /* Extract workspace: preview above, settings below (was side-by-side). */
-    .workspace-layout { flex-direction: column; height: auto; }
+    /* Extract workspace: preview above, settings below (was side-by-side).
+       min-width:0 lets the column flex children shrink to the viewport — without
+       it, a wide child's min-content (canvas, code block, table) balloons the
+       container past 100vw and #tab-* clips it via overflow-x:hidden. */
+    .workspace-layout { flex-direction: column; height: auto; min-width: 0; }
     .settings-panel {
         width: 100%;
+        min-width: 0;
         border-left: none;
         border-top: 1px solid var(--border, var(--border-subtle));
     }
     /* Guides: sidebar becomes a horizontal scroll strip above the article. */
-    .guides-layout { flex-direction: column; overflow: visible; }
+    .guides-layout { flex-direction: column; overflow: visible; min-width: 0; }
     .guides-sidebar {
         width: 100%;
         flex-direction: row;
@@ -1550,5 +1554,7 @@ body.is-anon .gate-banner { display: block; }
         border-bottom: 1px solid var(--border, var(--border-subtle));
         gap: var(--space-sm);
     }
+    /* Article shrinks to the viewport; wide <pre>/<table> scroll inside it. */
+    .guide-content { min-width: 0; max-width: 100%; }
     .guide-link { white-space: nowrap; }
 }
