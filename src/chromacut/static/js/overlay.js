@@ -18,6 +18,33 @@ export const CURSOR_MAP = {
 
 const HANDLE_HIT_PX = 12;
 
+// ---- Theme-aware overlay colors ----
+// Canvas can't read CSS vars, so resolve them from computed styles each draw.
+// The selection box uses --select (cool editor color); snap lines use --success
+// (the chroma/green domain cue). Falls back to the dark-theme values.
+function overlayColors() {
+    const cs = getComputedStyle(document.documentElement);
+    const sel = (cs.getPropertyValue('--select') || '#6aa9ff').trim();
+    const snap = (cs.getPropertyValue('--success') || '#34d399').trim();
+    const handleBorder = (cs.getPropertyValue('--bg-secondary') || '#0e0e15').trim();
+    // color-mix lets us derive the alpha variants from the themed base color.
+    const a = (pct) => `color-mix(in srgb, ${sel} ${pct}%, transparent)`;
+    return {
+        sel,
+        selStrong: sel,
+        selHover: a(80),
+        selDim: a(53),
+        selExcl: a(40),
+        selExclHover: a(27),
+        selExclDim: a(20),
+        fillHover: a(7),
+        fillExcl: a(3),
+        handleFill: sel,
+        handleBorder,
+        snap: `color-mix(in srgb, ${snap} 40%, transparent)`,
+    };
+}
+
 // ---- Coordinate conversion ----
 
 /**
@@ -121,6 +148,7 @@ export function drawOverlay(overlayCanvas) {
     const scaleY = overlayCanvas.height / state.sourceImage.height;
 
     const { selectedCell, hoveredCell, editedCells } = state;
+    const C = overlayColors();
 
     editedCells.forEach((cell, i) => {
         const x = cell.x * scaleX;
@@ -130,22 +158,22 @@ export function drawOverlay(overlayCanvas) {
         const excluded = state.excludedCells.has(i);
 
         if (i === selectedCell) {
-            ctx.strokeStyle = excluded ? '#FF2D9B66' : '#FF2D9B';
+            ctx.strokeStyle = excluded ? C.selDim : C.selStrong;
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
         } else if (i === hoveredCell) {
-            ctx.strokeStyle = excluded ? '#FF2D9B44' : '#FF2D9BCC';
+            ctx.strokeStyle = excluded ? C.selExclHover : C.selHover;
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
         } else {
-            ctx.strokeStyle = excluded ? '#FF2D9B33' : '#FF2D9B88';
+            ctx.strokeStyle = excluded ? C.selExclDim : C.selDim;
             ctx.lineWidth = 1;
             ctx.setLineDash([6, 3]);
         }
 
         // Hover fill highlight
         if (i === hoveredCell && i !== selectedCell) {
-            ctx.fillStyle = excluded ? '#FF2D9B08' : '#FF2D9B11';
+            ctx.fillStyle = excluded ? C.fillExcl : C.fillHover;
             ctx.fillRect(x, y, w, h);
         }
 
@@ -153,7 +181,7 @@ export function drawOverlay(overlayCanvas) {
 
         ctx.setLineDash([]);
         ctx.fillStyle = ctx.strokeStyle;
-        ctx.font = '11px "DM Mono", monospace';
+        ctx.font = '11px "JetBrains Mono", monospace';
         const label = excluded ? `${i + 1}x` : `${i + 1}`;
         ctx.fillText(label, x + 4, y + 14);
     });
@@ -162,8 +190,8 @@ export function drawOverlay(overlayCanvas) {
     if (selectedCell >= 0 && selectedCell < editedCells.length) {
         const handles = getHandlePositions(editedCells[selectedCell]);
         const handleSize = 6;
-        ctx.fillStyle = '#FF2D9B';
-        ctx.strokeStyle = '#0e0e15';
+        ctx.fillStyle = C.handleFill;
+        ctx.strokeStyle = C.handleBorder;
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
 
@@ -177,7 +205,7 @@ export function drawOverlay(overlayCanvas) {
 
     // Draw active snap lines
     if (state.activeSnapLines.length > 0) {
-        ctx.strokeStyle = '#44e04466';
+        ctx.strokeStyle = C.snap;
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
 
