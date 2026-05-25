@@ -10,6 +10,11 @@ import { drawOverlay } from './overlay.js';
 import { setupInteraction, refreshCellPreview, rebuildCellThumbnail } from './interaction.js';
 import { updatePreview, quickGreenRemove } from './preview.js';
 import { doExport } from './export.js';
+import { auth, isAuthed, requireAuth, ensureResolved, initThemeToggle } from './auth.js';
+
+// ---- Umbrella chrome + gated-state bootstrap ----
+initThemeToggle();
+ensureResolved(); // resolve /auth/me → toggles body.is-anon; never throws.
 
 // ---- DOM refs ----
 const $ = (sel) => document.querySelector(sel);
@@ -164,21 +169,45 @@ setupInteraction({
 });
 
 // ---- Tab switching ----
-$$('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        $$('.tab').forEach(t => t.classList.remove('active'));
-        $$('.tab-content').forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        $(`#tab-${tab.dataset.tab}`).classList.add('active');
+const landing = $('#landing');
 
-        if (tab.dataset.tab === 'guides') {
-            const firstLink = $('.guide-link.active');
-            if (firstLink && !$('#guide-content').dataset.loaded) {
-                loadGuide(firstLink.dataset.guide);
-                $('#guide-content').dataset.loaded = '1';
-            }
+function activateTab(name) {
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    $$('.tab-content').forEach(c => c.classList.remove('active'));
+    const panel = $(`#tab-${name}`);
+    if (panel) panel.classList.add('active');
+
+    // Landing is part of the Extract surface only; hide it on Guides.
+    if (landing) landing.style.display = (name === 'extract') ? '' : 'none';
+
+    if (name === 'guides') {
+        const firstLink = $('.guide-link.active');
+        if (firstLink && !$('#guide-content').dataset.loaded) {
+            loadGuide(firstLink.dataset.guide);
+            $('#guide-content').dataset.loaded = '1';
         }
-    });
+    }
+}
+
+$$('.tab').forEach(tab => {
+    tab.addEventListener('click', () => activateTab(tab.dataset.tab));
+});
+
+// ---- Landing CTAs ----
+document.addEventListener('click', (e) => {
+    const tool = e.target.closest('[data-action="open-tool"]');
+    if (tool) {
+        e.preventDefault();
+        activateTab('extract');
+        $('#tab-extract').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+    const guides = e.target.closest('[data-action="open-guides"]');
+    if (guides) {
+        e.preventDefault();
+        activateTab('guides');
+        $('header.app-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 });
 
 // ---- Drop zone ----
@@ -239,7 +268,10 @@ paddingSlider.addEventListener('input', () => {
 });
 
 // ---- Export button ----
-btnExport.addEventListener('click', () => {
+btnExport.addEventListener('click', async () => {
+    // Gate: route anonymous users to sign-in instead of firing a raw 401.
+    await ensureResolved();
+    if (!requireAuth()) return;
     doExport(btnExport, exportStatus, paddingSlider, nameFields);
 });
 
@@ -321,6 +353,15 @@ function drawSource() {
 // ---- Analyze via API ----
 async function analyzeImage() {
     if (!state.sourceFile) return;
+
+    // Gate: analyze is server-side and edge-gated. For anonymous visitors,
+    // skip the call (no raw 401) and surface the "sign in to use" CTA instead.
+    await ensureResolved();
+    if (!isAuthed()) {
+        loadingOverlay.classList.add('hidden');
+        exportStatus.textContent = 'Sign in to analyze this image.';
+        return;
+    }
 
     loadingOverlay.classList.remove('hidden');
     exportStatus.textContent = '';
