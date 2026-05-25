@@ -6,7 +6,7 @@
    ============================================================ */
 
 import { state, resetState, initCells, pushUndo } from './state.js';
-import { drawOverlay } from './overlay.js';
+import { drawOverlay } from './overlay.js?v=9c';
 import { setupInteraction, refreshCellPreview, rebuildCellThumbnail } from './interaction.js';
 import { updatePreview, quickGreenRemove } from './preview.js';
 import { doExport } from './export.js';
