@@ -67,6 +67,10 @@ html {
     font-size: 15px;
 }
 
+/* Never let a stray wide child (canvas, strip, overflow scroller) push the page
+   sideways — keeps content centered on zoom / narrow widths. */
+html, body { overflow-x: hidden; }
+
 body {
     font-family: var(--font-body);
     color: var(--text);
@@ -95,16 +99,16 @@ body.app-mode { overflow: hidden; height: 100vh; }
 .app-header {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: var(--z-header);
     display: flex;
     align-items: center;
     height: 52px;
     padding: 0 var(--space-lg);
-    /* Canonical umbrella chrome blur over a translucent surface. */
-    background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
+    /* Canonical umbrella chrome blur over a translucent surface (skin: --bar-*). */
+    background: var(--bar-bg);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--bar-border);
     gap: var(--space-xl);
     user-select: none;
     flex-shrink: 0;
@@ -185,11 +189,15 @@ body.app-mode { overflow: hidden; height: 100vh; }
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     background: var(--bg-surface);
-    color: var(--text-secondary);
+    color: var(--bar-fg, var(--text-secondary));
     cursor: pointer;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
+    transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
-.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.theme-toggle:hover {
+    color: var(--bar-accent);
+    border-color: var(--bar-accent);
+    background: var(--bar-subtle, var(--accent-subtle));
+}
 .theme-toggle:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -210,12 +218,16 @@ body.app-mode { overflow: hidden; height: 100vh; }
     border: 1px solid var(--border-default);
     border-radius: var(--radius-sm);
     background: var(--bg-surface);
-    color: var(--text-secondary);
+    color: var(--bar-fg, var(--text-secondary));
     font: 500 var(--text-sm)/1 var(--font-body);
     text-decoration: none;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
+    transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
-.umbrella-home:hover { color: var(--accent); border-color: var(--accent); }
+.umbrella-home:hover {
+    color: var(--bar-accent);
+    border-color: var(--bar-accent);
+    background: var(--bar-subtle, var(--accent-subtle));
+}
 .umbrella-home:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -224,6 +236,28 @@ body.app-mode { overflow: hidden; height: 100vh; }
 @media (max-width: 640px) {
     .umbrella-home__label { display: none; }
     .umbrella-home { padding: 0 var(--space-sm); }
+}
+
+/* Mobile header reflow — the priority cluster (theme · home · chip) stays inline
+   on row 1 next to the wordmark; the Extract/Guides app-tabs drop to a full-width
+   segmented strip on row 2. Contract: app-tabs MUST stay reachable at every width,
+   never behind an overflow. (Fixes the original phone overflow bug.) */
+@media (max-width: 768px) {
+    .app-header {
+        flex-wrap: wrap;
+        gap: var(--space-sm) var(--space-md);
+        height: auto;
+        padding: var(--space-sm) var(--space-md);
+    }
+    .tab-bar {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+        border-top: 1px solid var(--border-subtle);
+        padding-top: var(--space-sm);
+    }
+    .header-spacer { order: 2; }   /* actions stay on row 1, right of the logo */
+    .logo { order: 1; }
 }
 
 /* ============================================================
@@ -1492,3 +1526,35 @@ body.is-anon .gate-banner { display: block; }
 }
 .gate-banner__cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
 .gate-banner__cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ============================================================
+   Narrow-screen stacking — workspace (Extract) + guides layouts.
+   Both are side-by-side flex rows on desktop; on phones/tablets they
+   stack so neither column gets crushed and nothing scrolls sideways.
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Extract workspace: preview above, settings below (was side-by-side).
+       min-width:0 lets the column flex children shrink to the viewport — without
+       it, a wide child's min-content (canvas, code block, table) balloons the
+       container past 100vw and #tab-* clips it via overflow-x:hidden. */
+    .workspace-layout { flex-direction: column; height: auto; min-width: 0; }
+    .settings-panel {
+        width: 100%;
+        min-width: 0;
+        border-left: none;
+        border-top: 1px solid var(--border, var(--border-subtle));
+    }
+    /* Guides: sidebar becomes a horizontal scroll strip above the article. */
+    .guides-layout { flex-direction: column; overflow: visible; min-width: 0; }
+    .guides-sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border, var(--border-subtle));
+        gap: var(--space-sm);
+    }
+    /* Article shrinks to the viewport; wide <pre>/<table> scroll inside it. */
+    .guide-content { min-width: 0; max-width: 100%; }
+    .guide-link { white-space: nowrap; }
+}

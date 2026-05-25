@@ -22,8 +22,8 @@
     <!-- chromacut's own tokens (RELATIVE) — umbrella values, works standalone.
          ?v= cache-busts behind Cloudflare (these are served by the chromacut
          container, unhashed; bump the version when style/token CSS changes). -->
-    <link rel="stylesheet" href="static/tokens.css?v=9c">
-    <link rel="stylesheet" href="static/style.css?v=9c">
+    <link rel="stylesheet" href="static/tokens.css?v=18">
+    <link rel="stylesheet" href="static/style.css?v=18">
     <!-- Shared umbrella chip (ABSOLUTE) — served by admin behind the umbrella;
          404s harmlessly when run standalone (chip simply doesn't hydrate). -->
     <link rel="stylesheet" href="/static/_shared/identity-chip.css">
@@ -31,7 +31,7 @@
 </head>
 <body>
     <!-- Header -->
-    <header class="app-header">
+    <header class="app-header" data-surface="chromacut">
         <a class="logo" href="#top">
             <span class="logo-icon"></span>
             <h1>chromacut</h1>

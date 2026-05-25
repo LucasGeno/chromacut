@@ -33,6 +33,20 @@
   --text-base: 0.9rem;
   --text-lg: 1rem;
   --text-xl: 1.25rem;
+
+  /* Umbrella top-bar skin (contract: lucas-platform DESIGN.md § Umbrella Top Bar).
+     ChromaCut is the umbrella default look, so these mirror the umbrella defaults. */
+  --bar-bg: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
+  --bar-border: var(--border-subtle);
+  --bar-fg: var(--text-secondary);
+  --bar-accent: var(--accent);
+  --bar-subtle: var(--accent-subtle);   /* hover fill — keeps toggle/home tinting with the bar */
+  --bar-wordmark-font: var(--font-display);
+  --bar-wordmark-size: var(--text-lg);
+
+  /* z-index scale — ChromaCut's existing values (header 40, chip 50). */
+  --z-floating: 50;
+  --z-header: 40;
 }
 
 [data-theme="dark"] {
