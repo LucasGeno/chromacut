@@ -1,9 +1,17 @@
 .venv/
+venv/
 __pycache__/
+*.py[cod]
 *.egg-info/
 dist/
 build/
 .pytest_cache/
+
+# macOS
+.DS_Store
+
+# CLI extraction output (default --output-dir)
+out/
 
 # Demo capture intermediates (raw video + poster source); final assets in
 # src/chromacut/static/ are committed. See scripts/CAPTURE.md.

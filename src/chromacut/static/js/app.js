@@ -329,7 +329,7 @@ async function analyzeImage() {
     form.append('file', state.sourceFile);
 
     try {
-        const resp = await fetch('/api/analyze', { method: 'POST', body: form });
+        const resp = await fetch('api/analyze', { method: 'POST', body: form });
         state.analysisData = await resp.json();
 
         initCells(state.analysisData);
@@ -446,7 +446,7 @@ async function loadGuide(topic) {
     content.innerHTML = '<div class="guide-placeholder">Loading...</div>';
 
     try {
-        const resp = await fetch(`/api/guides/${topic}`);
+        const resp = await fetch(`api/guides/${topic}`);
         const data = await resp.json();
         if (data.html) {
             content.innerHTML = data.html;
