@@ -69,67 +69,73 @@ fs.mkdirSync(OUT, { recursive: true });
 const results = { gate: {}, ui: {}, download: null, errors: [] };
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({
-  viewport: { width: 1280, height: 800 },
-  acceptDownloads: true,
-});
-// Inject the minted session cookie (httpOnly + secure, as the server sets it).
-const cookieDomain = new URL(BASE).hostname;
-await context.addCookies([{
-  name: 'session', value: TOKEN, domain: cookieDomain, path: '/',
-  httpOnly: true, secure: true, sameSite: 'Lax',
-}]);
+let pass = false;
+// try/finally so a mid-run timeout (selector/download/click) can't orphan the
+// headless Chromium and still prints the results summary below for diagnostics.
+try {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    acceptDownloads: true,
+  });
+  // Inject the minted session cookie (httpOnly + secure, as the server sets it).
+  // `secure` tracks the BASE protocol so an http:// BASE_URL override (local/staging)
+  // still sends the cookie instead of silently dropping it and failing the gate.
+  const url = new URL(BASE);
+  await context.addCookies([{
+    name: 'session', value: TOKEN, domain: url.hostname, path: '/',
+    httpOnly: true, secure: url.protocol === 'https:', sameSite: 'Lax',
+  }]);
 
-const page = await context.newPage();
+  const page = await context.newPage();
 
-// Capture the gated POST responses through the edge.
-page.on('response', (resp) => {
-  const u = resp.url();
-  if (u.endsWith('/api/analyze')) results.gate.analyze = resp.status();
-  if (u.endsWith('/api/extract')) results.gate.extract = resp.status();
-});
-page.on('console', (m) => { if (m.type() === 'error') results.errors.push(m.text()); });
+  // Capture the gated POST responses through the edge.
+  page.on('response', (resp) => {
+    const u = resp.url();
+    if (u.endsWith('/api/analyze')) results.gate.analyze = resp.status();
+    if (u.endsWith('/api/extract')) results.gate.extract = resp.status();
+  });
+  page.on('console', (m) => { if (m.type() === 'error') results.errors.push(m.text()); });
 
-console.log(`[e2e] navigating to ${TARGET}`);
-await page.goto(TARGET, { waitUntil: 'networkidle' });
+  console.log(`[e2e] navigating to ${TARGET}`);
+  await page.goto(TARGET, { waitUntil: 'networkidle' });
 
-// Signed-in UI state: export gate-note should be hidden, button enabled.
-const gateNote = page.locator('#export-gate-note');
-results.ui.gateNoteVisible = (await gateNote.count()) ? await gateNote.isVisible() : false;
+  // Signed-in UI state: export gate-note should be hidden, button enabled.
+  const gateNote = page.locator('#export-gate-note');
+  results.ui.gateNoteVisible = (await gateNote.count()) ? await gateNote.isVisible() : false;
 
-// Upload the fixture -> drives POST /api/analyze through the gate.
-console.log(`[e2e] uploading ${path.basename(FIXTURE)}`);
-await page.setInputFiles('#file-input', FIXTURE);
-await page.waitForSelector('#workspace:not(.hidden)', { timeout: 20000 });
-await page.waitForSelector('#loading-overlay', { state: 'hidden', timeout: 30000 });
-await page.waitForFunction(() => {
-  const c = document.querySelector('#result-canvas');
-  return c && c.width > 0 && c.height > 0;
-}, { timeout: 30000 });
-results.ui.workspaceShown = true;
+  // Upload the fixture -> drives POST /api/analyze through the gate.
+  console.log(`[e2e] uploading ${path.basename(FIXTURE)}`);
+  await page.setInputFiles('#file-input', FIXTURE);
+  await page.waitForSelector('#workspace:not(.hidden)', { timeout: 20000 });
+  await page.waitForSelector('#loading-overlay', { state: 'hidden', timeout: 30000 });
+  await page.waitForFunction(() => {
+    const c = document.querySelector('#result-canvas');
+    return c && c.width > 0 && c.height > 0;
+  }, { timeout: 30000 });
+  results.ui.workspaceShown = true;
 
-// Extract -> POST /api/extract through the gate -> file download.
-const btn = page.locator('#btn-export');
-results.ui.exportEnabled = await btn.isEnabled();
-console.log('[e2e] clicking Export');
-const dlPromise = page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
-await btn.click();
-const dl = await dlPromise;
-if (dl) {
-  const dest = path.join(OUT, dl.suggestedFilename());
-  await dl.saveAs(dest);
-  results.download = { name: dl.suggestedFilename(), bytes: fs.statSync(dest).size };
+  // Extract -> POST /api/extract through the gate -> file download.
+  const btn = page.locator('#btn-export');
+  results.ui.exportEnabled = await btn.isEnabled();
+  console.log('[e2e] clicking Export');
+  const dlPromise = page.waitForEvent('download', { timeout: 30000 }).catch(() => null);
+  await btn.click();
+  const dl = await dlPromise;
+  if (dl) {
+    const dest = path.join(OUT, dl.suggestedFilename());
+    await dl.saveAs(dest);
+    results.download = { name: dl.suggestedFilename(), bytes: fs.statSync(dest).size };
+  }
+  await page.waitForTimeout(1200);
+  results.ui.exportStatus = (await page.locator('#export-status').textContent())?.trim();
+  await page.screenshot({ path: path.join(OUT, 'output-state.png'), fullPage: true });
+
+  pass = results.gate.analyze === 200 && results.gate.extract === 200 && Boolean(results.download);
+} finally {
+  await browser.close();
 }
-await page.waitForTimeout(1200);
-results.ui.exportStatus = (await page.locator('#export-status').textContent())?.trim();
-await page.screenshot({ path: path.join(OUT, 'output-state.png'), fullPage: true });
-
-await context.close();
-await browser.close();
 
 console.log('\n===== RESULT =====');
 console.log(JSON.stringify(results, null, 2));
-
-const pass = results.gate.analyze === 200 && results.gate.extract === 200 && results.download;
 console.log(`\nVERDICT: ${pass ? 'PASS' : 'FAIL'}`);
 process.exit(pass ? 0 : 1);
