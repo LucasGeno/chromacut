@@ -70,8 +70,9 @@ const results = { gate: {}, ui: {}, download: null, errors: [] };
 
 const browser = await chromium.launch({ headless: true });
 let pass = false;
-// try/finally so a mid-run timeout (selector/download/click) can't orphan the
-// headless Chromium and still prints the results summary below for diagnostics.
+// try/catch/finally: catch records a mid-run throw (selector/download/click
+// timeout) into results instead of rethrowing, finally closes the browser so it
+// can't orphan — so the results summary + VERDICT below always print on failure.
 try {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
@@ -131,6 +132,10 @@ try {
   await page.screenshot({ path: path.join(OUT, 'output-state.png'), fullPage: true });
 
   pass = results.gate.analyze === 200 && results.gate.extract === 200 && Boolean(results.download);
+} catch (err) {
+  // Record the failure instead of rethrowing, so the results summary + VERDICT
+  // below still print (a bare try/finally would rethrow and skip them).
+  results.error = { message: err?.message || String(err), stack: err?.stack };
 } finally {
   await browser.close();
 }
