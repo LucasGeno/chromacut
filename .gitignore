@@ -16,3 +16,6 @@ out/
 # Demo capture intermediates (raw video + poster source); final assets in
 # src/chromacut/static/ are committed. See scripts/CAPTURE.md.
 scripts/_capture/
+
+# Signed-in E2E intermediates (downloaded zip + screenshot). See scripts/E2E.md.
+scripts/_e2e/
