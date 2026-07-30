@@ -23,8 +23,6 @@ const $$ = (sel) => document.querySelectorAll(sel);
 const dropZone       = $('#drop-zone');
 const fileInput      = $('#file-input');
 const btnChoose      = $('#btn-choose');
-const btnExample     = $('#btn-example');
-const dropStatus     = $('#drop-status');
 const workspace      = $('#workspace');
 const sourceCanvas   = $('#source-canvas');
 const overlayCanvas  = $('#overlay-canvas');
@@ -202,24 +200,9 @@ async function chooseFile() {
 }
 
 dropZone.addEventListener('click', (e) => {
-    if (!e.target.closest('button, a')) chooseFile();
+    if (!e.target.closest('button, a, summary')) chooseFile();
 });
 btnChoose.addEventListener('click', chooseFile);
-
-btnExample.addEventListener('click', async () => {
-    await ensureResolved();
-    if (!requireAuth()) return;
-
-    dropStatus.textContent = 'Loading example…';
-    try {
-        const resp = await fetch('static/example-grid.png');
-        if (!resp.ok) throw new Error('Example unavailable');
-        const blob = await resp.blob();
-        await handleFile(new File([blob], 'chromacut-example.png', { type: 'image/png' }));
-    } catch (err) {
-        dropStatus.textContent = err.message;
-    }
-});
 
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();

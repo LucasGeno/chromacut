@@ -23,7 +23,7 @@
          ?v= cache-busts behind Cloudflare (these are served by the chromacut
          container, unhashed; bump the version when style/token CSS changes). -->
     <link rel="stylesheet" href="static/tokens.css?v=18">
-    <link rel="stylesheet" href="static/style.css?v=21">
+    <link rel="stylesheet" href="static/style.css?v=22">
     <!-- Shared umbrella chip (ABSOLUTE) — served by admin behind the umbrella;
          404s harmlessly when run standalone (chip simply doesn't hydrate). -->
     <link rel="stylesheet" href="/static/_shared/identity-chip.css">
@@ -91,16 +91,56 @@
                     <p class="drop-hint">PNG, JPG, or WebP · 50 MB max</p>
                     <div class="drop-actions">
                         <button id="btn-choose" class="drop-action drop-action--primary" type="button">Choose image</button>
-                        <button id="btn-example" class="drop-action" type="button">Try example</button>
                     </div>
-                    <p id="drop-status" class="example-hint" role="status">The example includes three ready-to-detect pixel-art icons.</p>
                     <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden>
+
+                    <details id="example-showcase" class="example-showcase">
+                        <summary class="drop-action">Try examples</summary>
+                        <div class="example-showcase__intro">
+                            <span>// precomputed with chromacut</span>
+                            <p>See the green disappear—no sign-in or upload required.</p>
+                        </div>
+                        <div class="example-grid">
+                            <article class="example-card">
+                                <header>
+                                    <h3>Corgi</h3>
+                                    <span>pixel edges</span>
+                                </header>
+                                <div class="example-pair">
+                                    <figure class="example-plate">
+                                        <figcaption>Before · chroma</figcaption>
+                                        <img src="static/examples/corgi-source.png" alt="Pixel-art corgi on a bright green background" loading="lazy" decoding="async">
+                                    </figure>
+                                    <figure class="example-plate example-plate--result">
+                                        <figcaption>After · alpha</figcaption>
+                                        <img src="static/examples/corgi-result.png" alt="The same corgi with its green background removed" loading="lazy" decoding="async">
+                                    </figure>
+                                </div>
+                            </article>
+                            <article class="example-card">
+                                <header>
+                                    <h3>Bicycle</h3>
+                                    <span>thin features</span>
+                                </header>
+                                <div class="example-pair">
+                                    <figure class="example-plate">
+                                        <figcaption>Before · chroma</figcaption>
+                                        <img src="static/examples/bicycle-source.png" alt="Vintage bicycle on a bright green background" loading="lazy" decoding="async">
+                                    </figure>
+                                    <figure class="example-plate example-plate--result">
+                                        <figcaption>After · alpha</figcaption>
+                                        <img src="static/examples/bicycle-result.png" alt="The same bicycle with its green background removed and thin spokes preserved" loading="lazy" decoding="async">
+                                    </figure>
+                                </div>
+                            </article>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- Anonymous gate: explains the sign-in requirement up front. -->
                 <div class="gate-banner" id="gate-banner">
                     <div class="gate-banner__title">Sign in to extract</div>
-                    <div class="gate-banner__body">Use your own sheet or the example after signing in. Guides stay public.</div>
+                    <div class="gate-banner__body">Sign in to upload, edit, and export. The examples and guides stay public.</div>
                     <a class="gate-banner__cta" id="gate-banner-cta" href="/login">Sign in</a>
                 </div>
             </section>
@@ -285,6 +325,6 @@
         </div>
     </div>
 
-    <script type="module" src="static/js/app.js?v=11"></script>
+    <script type="module" src="static/js/app.js?v=12"></script>
 </body>
 </html>
