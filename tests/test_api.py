@@ -34,17 +34,35 @@ def test_index_returns_html():
     assert "text/html" in resp.headers["content-type"]
 
 
-def test_index_opens_on_the_extractor_with_a_bundled_example():
+def test_index_opens_on_the_extractor_with_public_precomputed_examples():
     html = client.get("/").text
 
     assert 'id="landing"' not in html
     assert 'id="tab-extract"' in html
     assert 'id="btn-choose"' in html
-    assert 'id="btn-example"' in html
+    assert '<details id="example-showcase"' in html
+    assert "<summary" in html
+    assert "Try examples" in html
+    assert "Corgi" in html
+    assert "Bicycle" in html
 
-    example = client.get("/static/example-grid.png")
-    assert example.status_code == 200
-    assert example.headers["content-type"] == "image/png"
+    for name in (
+        "corgi-source.png",
+        "corgi-result.png",
+        "bicycle-source.png",
+        "bicycle-result.png",
+    ):
+        example = client.get(f"/static/examples/{name}")
+        assert example.status_code == 200
+        assert example.headers["content-type"] == "image/png"
+
+    for name in ("corgi-result.png", "bicycle-result.png"):
+        result = Image.open(STATIC_DIR / "examples" / name)
+        assert result.mode == "RGBA"
+        assert result.getchannel("A").getextrema() == (0, 255)
+
+    app_js = (STATIC_DIR / "js" / "app.js").read_text()
+    assert "button, a, summary" in app_js
 
 
 def test_guide_picker_uses_keyboard_native_tab_controls():

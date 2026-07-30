@@ -412,11 +412,116 @@ body {
     outline-offset: 2px;
 }
 
-.example-hint {
-    min-height: 18px;
-    color: var(--text-tertiary);
-    font: var(--text-xs)/1.5 var(--font-mono);
+.example-showcase {
+    width: 100%;
+    margin-top: var(--space-xs);
+}
+
+.example-showcase > summary {
+    width: max-content;
+    margin: 0 auto;
+    list-style: none;
+}
+
+.example-showcase > summary::-webkit-details-marker { display: none; }
+
+.example-showcase > summary::after {
+    content: " +";
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+.example-showcase[open] > summary::after { content: " −"; }
+
+.example-showcase__intro {
+    margin: var(--space-lg) auto var(--space-md);
     text-align: center;
+}
+
+.example-showcase__intro span {
+    color: var(--accent);
+    font: var(--text-xs)/1.5 var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.example-showcase__intro p {
+    margin-top: var(--space-xs);
+    color: var(--text-secondary);
+    font-size: var(--text-base);
+}
+
+.example-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md);
+}
+
+.example-card {
+    min-width: 0;
+    padding: var(--space-md);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+}
+
+.example-card > header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+.example-card h3 {
+    color: var(--text-primary);
+    font: 600 var(--text-base)/1.2 var(--font-display);
+}
+
+.example-card header span,
+.example-plate figcaption {
+    color: var(--text-tertiary);
+    font: var(--text-xs)/1.4 var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.example-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-xs);
+}
+
+.example-plate {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+}
+
+.example-plate figcaption {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+}
+
+.example-plate img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+}
+
+.example-plate--result {
+    background-color: var(--bg-primary);
+    background-image:
+        linear-gradient(45deg, var(--bg-surface) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--bg-surface) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--bg-surface) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--bg-surface) 75%);
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-size: 16px 16px;
 }
 
 /* ============================================================
@@ -1449,6 +1554,9 @@ body.is-anon .gate-banner { display: block; }
     }
     .drop-zone-inner {
         padding: var(--space-lg) var(--space-md);
+    }
+    .example-grid {
+        grid-template-columns: 1fr;
     }
     /* Extract workspace: preview above, settings below (was side-by-side).
        min-width:0 lets the column flex children shrink to the viewport — without
