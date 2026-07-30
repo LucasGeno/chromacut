@@ -4,7 +4,7 @@ Extract clean, transparent PNGs from AI-generated chroma-key images. A local web
 
 **What it does:** Drop or paste a green-screen image (single icon or grid), preview the extraction with VFX-quality despill, adjust cell bounds interactively, and export clean PNGs. No AI models, no cloud — just fast color-based keying with professional-quality edge refinement.
 
-**Try it without installing:** a hosted instance runs at **[lucasreed.me/chromacut](https://lucasreed.me/chromacut)**. The landing page and tool UI are public; running an extraction requires signing in (it's gated to keep anonymous compute abuse out). For unlimited, fully-local use with no sign-in, install it yourself below.
+**Try it without installing:** a hosted instance runs at **[lucasreed.me/chromacut](https://lucasreed.me/chromacut)**. The tool and guides are public; running an extraction requires signing in (it's gated to keep anonymous compute abuse out). Start with **Try example** to load a ready-made three-icon sheet. For unlimited, fully-local use with no sign-in, install it yourself below.
 
 ## Install
 

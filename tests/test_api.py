@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import zipfile
+from pathlib import Path
 
 import pytest
 import numpy as np
@@ -12,6 +13,7 @@ from chromacut.app import app
 
 
 client = TestClient(app)
+STATIC_DIR = Path(__file__).parents[1] / "src" / "chromacut" / "static"
 
 
 def _make_test_image():
@@ -30,6 +32,36 @@ def test_index_returns_html():
     resp = client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
+
+
+def test_index_opens_on_the_extractor_with_a_bundled_example():
+    html = client.get("/").text
+
+    assert 'id="landing"' not in html
+    assert 'id="tab-extract"' in html
+    assert 'id="btn-choose"' in html
+    assert 'id="btn-example"' in html
+
+    example = client.get("/static/example-grid.png")
+    assert example.status_code == 200
+    assert example.headers["content-type"] == "image/png"
+
+
+def test_guide_picker_uses_keyboard_native_tab_controls():
+    html = client.get("/").text
+
+    assert '<nav class="guides-sidebar" role="tablist"' in html
+    assert '<button class="guide-link active"' in html
+    assert 'role="tab"' in html
+    assert 'aria-selected="true"' in html
+    assert '<a class="guide-link' not in html
+
+
+def test_frontend_local_auth_fallback_is_loopback_only():
+    auth_js = (STATIC_DIR / "js" / "auth.js").read_text()
+
+    assert 'new Set(["localhost", "127.0.0.1", "::1"])' in auth_js
+    assert auth_js.count("LOCAL_HOSTS.has(window.location.hostname)") == 2
 
 
 def test_analyze_single_icon():

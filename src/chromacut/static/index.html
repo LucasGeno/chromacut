@@ -23,7 +23,7 @@
          ?v= cache-busts behind Cloudflare (these are served by the chromacut
          container, unhashed; bump the version when style/token CSS changes). -->
     <link rel="stylesheet" href="static/tokens.css?v=18">
-    <link rel="stylesheet" href="static/style.css?v=18">
+    <link rel="stylesheet" href="static/style.css?v=21">
     <!-- Shared umbrella chip (ABSOLUTE) — served by admin behind the umbrella;
          404s harmlessly when run standalone (chip simply doesn't hydrate). -->
     <link rel="stylesheet" href="/static/_shared/identity-chip.css">
@@ -36,9 +36,9 @@
             <span class="logo-icon"></span>
             <h1>chromacut</h1>
         </a>
-        <nav class="tab-bar">
-            <button class="tab active" data-tab="extract">Extract</button>
-            <button class="tab" data-tab="guides">Guides</button>
+        <nav class="tab-bar" role="tablist" aria-label="Chromacut views">
+            <button id="tab-extract-button" class="tab active" data-tab="extract" type="button" role="tab" aria-selected="true" aria-controls="tab-extract">Extract</button>
+            <button id="tab-guides-button" class="tab" data-tab="guides" type="button" role="tab" aria-selected="false" aria-controls="tab-guides">Guides</button>
         </nav>
         <div class="header-spacer">
             <!-- Theme toggle (umbrella sun/moon glyphs) -->
@@ -69,82 +69,41 @@
         </div>
     </header>
 
-    <!-- Public landing (visible to everyone; shown only on the Extract tab) -->
-    <section id="landing" class="landing" data-tab-panel="extract">
-        <div class="landing-hero" id="top">
-            <p class="landing-eyebrow">// chroma-key → transparent PNG</p>
-            <h2>Clean icons out of <span class="accent">green-screen</span> art.</h2>
-            <p class="landing-lede">
-                Drop an AI-generated chroma-key sheet. Chromacut finds the grid,
-                lifts each piece off its background, and hands you ready-to-use
-                transparent PNGs.
-            </p>
-            <div class="landing-hero-divider"></div>
-        </div>
-
-        <figure class="chromacut-demo" aria-label="Chromacut turning an AI chroma-key grid into clean transparent PNGs">
-            <video
-                class="chromacut-demo__video"
-                autoplay loop muted playsinline preload="metadata"
-                poster="static/chromacut-demo-poster.webp"
-                width="960" height="576">
-                <source src="static/chromacut-demo.mp4" type="video/mp4; codecs=av01" />
-            </video>
-            <img
-                class="chromacut-demo__poster"
-                src="static/chromacut-demo-poster.webp"
-                alt="A green-screen grid of three AI icons on the left, the first extracted as a clean transparent PNG on a checkerboard on the right."
-                width="960" height="576" loading="lazy" decoding="async" />
-            <figcaption class="chromacut-demo__caption">The real tool, end to end — upload, auto-detect, extract.</figcaption>
-        </figure>
-
-        <div class="how-it-works">
-            <h3>How it works</h3>
-            <div class="how-grid">
-                <div class="how-step">
-                    <div class="how-step__num">01</div>
-                    <h4>Drop the sheet</h4>
-                    <p>Paste or drop a chroma-key image — one icon or a whole grid on a solid background.</p>
-                </div>
-                <div class="how-step">
-                    <div class="how-step__num">02</div>
-                    <h4>It finds the cells</h4>
-                    <p>The key color and grid are detected automatically. Nudge the boxes if you want them tighter.</p>
-                </div>
-                <div class="how-step">
-                    <div class="how-step__num">03</div>
-                    <h4>Export clean PNGs</h4>
-                    <p>Edges are despilled and padded, then exported as transparent PNGs — one file or a zip.</p>
-                </div>
-            </div>
-            <div class="landing-cta">
-                <button class="landing-btn landing-btn--primary" data-action="open-tool" type="button">Try it below</button>
-                <button class="landing-btn landing-btn--ghost" data-action="open-guides" type="button">Read the guides</button>
-            </div>
-        </div>
-    </section>
-
     <!-- Extract Tab -->
-    <main id="tab-extract" class="tab-content active">
+    <main id="tab-extract" class="tab-content active" role="tabpanel" aria-labelledby="tab-extract-button">
         <!-- Drop zone (shown when no image loaded) -->
         <div id="drop-zone" class="drop-zone">
-            <div class="drop-zone-inner">
-                <div class="drop-icon">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                        <rect x="6" y="6" width="36" height="36" rx="4" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
-                        <path d="M24 16v16M16 24h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
+            <section class="extract-start" aria-labelledby="extract-title">
+                <div class="extract-intro" id="top">
+                    <p class="extract-eyebrow">// chroma-key → transparent PNG</p>
+                    <h2 id="extract-title">Clean icons out of <span>green-screen</span> art.</h2>
+                    <p>Drop a sheet, let Chromacut find the cells, then export transparent PNGs.</p>
                 </div>
-                <p class="drop-text">Drop or paste a chroma-key image here</p>
-                <p class="drop-hint">PNG or JPG with solid-color background</p>
-                <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden>
-            </div>
-            <!-- Anonymous gate: explains the sign-in requirement up front. -->
-            <div class="gate-banner" id="gate-banner">
-                <div class="gate-banner__title">Sign in to use chromacut</div>
-                <div class="gate-banner__body">Extraction runs on the server, so it's reserved for signed-in visitors. The demo and guides are open to everyone.</div>
-                <a class="gate-banner__cta" id="gate-banner-cta" href="/login">Sign in</a>
-            </div>
+
+                <div class="drop-zone-inner">
+                    <div class="drop-icon">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+                            <rect x="6" y="6" width="36" height="36" rx="4" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
+                            <path d="M24 16v16M16 24h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <p class="drop-text">Drop or paste a chroma-key image</p>
+                    <p class="drop-hint">PNG, JPG, or WebP · 50 MB max</p>
+                    <div class="drop-actions">
+                        <button id="btn-choose" class="drop-action drop-action--primary" type="button">Choose image</button>
+                        <button id="btn-example" class="drop-action" type="button">Try example</button>
+                    </div>
+                    <p id="drop-status" class="example-hint" role="status">The example includes three ready-to-detect pixel-art icons.</p>
+                    <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" hidden>
+                </div>
+
+                <!-- Anonymous gate: explains the sign-in requirement up front. -->
+                <div class="gate-banner" id="gate-banner">
+                    <div class="gate-banner__title">Sign in to extract</div>
+                    <div class="gate-banner__body">Use your own sheet or the example after signing in. Guides stay public.</div>
+                    <a class="gate-banner__cta" id="gate-banner-cta" href="/login">Sign in</a>
+                </div>
+            </section>
         </div>
 
         <!-- Workspace (shown after image loaded) -->
@@ -290,16 +249,16 @@
     </main>
 
     <!-- Guides Tab -->
-    <main id="tab-guides" class="tab-content">
+    <main id="tab-guides" class="tab-content" role="tabpanel" aria-labelledby="tab-guides-button">
         <div class="guides-layout">
-            <nav class="guides-sidebar">
-                <a class="guide-link active" data-guide="pixel-art">Pixel Art</a>
-                <a class="guide-link" data-guide="flat-icons">Flat Icons</a>
-                <a class="guide-link" data-guide="isometric">Isometric</a>
-                <a class="guide-link" data-guide="general-tips">General Tips</a>
-                <a class="guide-link" data-guide="color-palette">Color Palette</a>
+            <nav class="guides-sidebar" role="tablist" aria-label="Extraction guides">
+                <button class="guide-link active" type="button" role="tab" aria-selected="true" aria-controls="guide-content" data-guide="pixel-art">Pixel Art</button>
+                <button class="guide-link" type="button" role="tab" aria-selected="false" aria-controls="guide-content" data-guide="flat-icons">Flat Icons</button>
+                <button class="guide-link" type="button" role="tab" aria-selected="false" aria-controls="guide-content" data-guide="isometric">Isometric</button>
+                <button class="guide-link" type="button" role="tab" aria-selected="false" aria-controls="guide-content" data-guide="general-tips">General Tips</button>
+                <button class="guide-link" type="button" role="tab" aria-selected="false" aria-controls="guide-content" data-guide="color-palette">Color Palette</button>
             </nav>
-            <article id="guide-content" class="guide-content">
+            <article id="guide-content" class="guide-content" role="tabpanel" aria-live="polite">
                 <div class="guide-placeholder">Select a guide from the sidebar.</div>
             </article>
         </div>
@@ -326,6 +285,6 @@
         </div>
     </div>
 
-    <script type="module" src="static/js/app.js?v=9c"></script>
+    <script type="module" src="static/js/app.js?v=11"></script>
 </body>
 </html>
