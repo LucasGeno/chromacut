@@ -3,9 +3,8 @@
 
    Behind the umbrella (admin present), GET /auth/me returns identity JSON;
    the generate actions (analyze/extract/preview) work for signed-in users.
-   Standalone (`python -m chromacut`), /auth/me 404s — we treat that as
-   ANONYMOUS and degrade gracefully: no raw 401 is ever triggered, the user
-   sees a clear "Sign in to use" CTA instead.
+   Standalone (`python -m chromacut`), /auth/me 404s. Loopback hosts use the
+   local backend directly; every non-loopback host remains anonymous.
 
    Also owns the theme toggle (mirrors the umbrella BaseLayout handler).
    ============================================================ */
@@ -24,6 +23,7 @@ export function isAuthed() {
 }
 
 let _resolvePromise = null;
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 /** Fetch identity once. Any failure (404 standalone, network, non-2xx) →
  *  anonymous. Never throws. */
@@ -41,10 +41,10 @@ export function ensureResolved() {
         auth.authenticated = data && data.authenticated === true;
         if (data && data.login_url) auth.loginUrl = data.login_url;
       } else {
-        auth.authenticated = false;
+        auth.authenticated = LOCAL_HOSTS.has(window.location.hostname);
       }
     } catch (_) {
-      auth.authenticated = false;
+      auth.authenticated = LOCAL_HOSTS.has(window.location.hostname);
     }
     auth.resolved = true;
     applyGateState();

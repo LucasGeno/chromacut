@@ -54,5 +54,4 @@ Export enabled), the export status text, and any console errors.
 - `admin-panel`'s admin emails are in its `ADMIN_EMAIL` env; the email used is
   cosmetic for the gate (the session row's existence is what `/auth/verify` keys
   on). Mint with the shortest useful expiry and delete after.
-- This is the base for the deferred cross-surface Playwright suite (revisit when
-  Cobalt joins). Resolves Playwright the same way as `capture-demo.mjs`.
+- This is the base for the deferred cross-surface Playwright suite.

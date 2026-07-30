@@ -13,7 +13,7 @@
  *
  * Requirements:
  *   - Playwright + Chromium. This repo is python-only (no package.json), so the
- *     script resolves Playwright from an external install (same as capture-demo.mjs).
+ *     script resolves Playwright from an external install.
  *     Default: ~/.claude/skills/playwright-skill/node_modules. Override with
  *     PLAYWRIGHT_DIR or NODE_PATH.
  *

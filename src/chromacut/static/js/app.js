@@ -10,7 +10,7 @@ import { drawOverlay } from './overlay.js?v=9c';
 import { setupInteraction, refreshCellPreview, rebuildCellThumbnail } from './interaction.js';
 import { updatePreview, quickGreenRemove } from './preview.js';
 import { doExport } from './export.js';
-import { auth, isAuthed, requireAuth, ensureResolved, initThemeToggle } from './auth.js';
+import { auth, isAuthed, requireAuth, ensureResolved, initThemeToggle } from './auth.js?v=11';
 
 // ---- Umbrella chrome + gated-state bootstrap ----
 initThemeToggle();
@@ -22,6 +22,9 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 const dropZone       = $('#drop-zone');
 const fileInput      = $('#file-input');
+const btnChoose      = $('#btn-choose');
+const btnExample     = $('#btn-example');
+const dropStatus     = $('#drop-status');
 const workspace      = $('#workspace');
 const sourceCanvas   = $('#source-canvas');
 const overlayCanvas  = $('#overlay-canvas');
@@ -169,16 +172,15 @@ setupInteraction({
 });
 
 // ---- Tab switching ----
-const landing = $('#landing');
-
 function activateTab(name) {
-    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    $$('.tab').forEach(t => {
+        const active = t.dataset.tab === name;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', String(active));
+    });
     $$('.tab-content').forEach(c => c.classList.remove('active'));
     const panel = $(`#tab-${name}`);
     if (panel) panel.classList.add('active');
-
-    // Landing is part of the Extract surface only; hide it on Guides.
-    if (landing) landing.style.display = (name === 'extract') ? '' : 'none';
 
     if (name === 'guides') {
         const firstLink = $('.guide-link.active');
@@ -193,25 +195,31 @@ $$('.tab').forEach(tab => {
     tab.addEventListener('click', () => activateTab(tab.dataset.tab));
 });
 
-// ---- Landing CTAs ----
-document.addEventListener('click', (e) => {
-    const tool = e.target.closest('[data-action="open-tool"]');
-    if (tool) {
-        e.preventDefault();
-        activateTab('extract');
-        $('#tab-extract').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-    }
-    const guides = e.target.closest('[data-action="open-guides"]');
-    if (guides) {
-        e.preventDefault();
-        activateTab('guides');
-        $('header.app-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
+// ---- Drop zone ----
+async function chooseFile() {
+    await ensureResolved();
+    if (requireAuth()) fileInput.click();
+}
+
+dropZone.addEventListener('click', (e) => {
+    if (!e.target.closest('button, a')) chooseFile();
+});
+btnChoose.addEventListener('click', chooseFile);
+
+btnExample.addEventListener('click', async () => {
+    await ensureResolved();
+    if (!requireAuth()) return;
+
+    dropStatus.textContent = 'Loading example…';
+    try {
+        const resp = await fetch('static/example-grid.png');
+        if (!resp.ok) throw new Error('Example unavailable');
+        const blob = await resp.blob();
+        await handleFile(new File([blob], 'chromacut-example.png', { type: 'image/png' }));
+    } catch (err) {
+        dropStatus.textContent = err.message;
     }
 });
-
-// ---- Drop zone ----
-dropZone.addEventListener('click', () => fileInput.click());
 
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -303,7 +311,10 @@ window.addEventListener('paste', (e) => {
 });
 
 // ---- File handling ----
-function handleFile(file) {
+async function handleFile(file) {
+    await ensureResolved();
+    if (!requireAuth()) return;
+
     state.sourceFile = file;
     const img = new Image();
     img.onload = () => {
@@ -474,11 +485,36 @@ function buildNameFields() {
 }
 
 // ---- Guides ----
+function selectGuide(link) {
+    $$('.guide-link').forEach(l => {
+        const active = l === link;
+        l.classList.toggle('active', active);
+        l.setAttribute('aria-selected', String(active));
+    });
+    loadGuide(link.dataset.guide);
+}
+
 $$('.guide-link').forEach(link => {
-    link.addEventListener('click', () => {
-        $$('.guide-link').forEach(l => l.classList.remove('active'));
-        link.classList.add('active');
-        loadGuide(link.dataset.guide);
+    link.addEventListener('click', () => selectGuide(link));
+    link.addEventListener('keydown', (event) => {
+        const links = [...$$('.guide-link')];
+        const index = links.indexOf(link);
+        const moves = {
+            ArrowRight: 1,
+            ArrowDown: 1,
+            ArrowLeft: -1,
+            ArrowUp: -1,
+        };
+        if (!(event.key in moves) && event.key !== 'Home' && event.key !== 'End') return;
+
+        event.preventDefault();
+        const nextIndex = event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+                ? links.length - 1
+                : (index + moves[event.key] + links.length) % links.length;
+        links[nextIndex].focus();
+        selectGuide(links[nextIndex]);
     });
 });
 
