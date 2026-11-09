@@ -77,9 +77,13 @@ export function snapshotCells() {
  * @param {{ cells: Array, excludedCells: Set }} snapshot
  */
 export function restoreCells(snapshot) {
+    state.previewImages = snapshot.cells.map((cell, i) => {
+        const current = state.editedCells[i];
+        return current && ['x', 'y', 'w', 'h'].every(key => current[key] === cell[key])
+            ? state.previewImages[i] : null;
+    });
     state.editedCells = snapshot.cells.map(c => ({ ...c }));
     state.excludedCells = new Set(snapshot.excludedCells);
-    state.previewImages = [];
 }
 
 const UNDO_CAP = 50;

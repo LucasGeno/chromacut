@@ -303,6 +303,7 @@ export function setupInteraction(dom) {
         state.selectedCell = hit.cellIndex;
         drawOverlay(overlayCanvas);
         updatePreview(resultCanvas, paddingSlider);
+        if (!state.previewImages[state.selectedCell]) refreshCellPreview(state.selectedCell, state.sourceFile);
         updateCellPanel();
 
         document.querySelectorAll('.cell-thumb').forEach((t, i) => {
@@ -470,6 +471,7 @@ export function setupInteraction(dom) {
                 state.selectedCell = idx;
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
+                if (!state.previewImages[idx]) refreshCellPreview(idx, state.sourceFile);
                 if (updateCellPanel) updateCellPanel();
                 document.querySelectorAll('.cell-thumb').forEach((t, i) => {
                     t.classList.toggle('active', i === state.selectedCell);
