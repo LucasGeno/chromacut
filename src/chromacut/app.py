@@ -48,16 +48,25 @@ async def index():
     return HTMLResponse("<h1>chromacut</h1><p>Static files not found.</p>")
 
 
-@app.post("/api/analyze")
-async def analyze(file: UploadFile = File(...)):
-    contents = await file.read()
+async def _read_image(file: UploadFile, mode: str | None = None) -> Image.Image | JSONResponse:
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(contents) > MAX_UPLOAD_BYTES:
         return JSONResponse({"error": "File too large (max 50 MB)"}, status_code=413)
     try:
         img = Image.open(io.BytesIO(contents))
+        if mode is not None:
+            img = img.convert(mode)
         img.load()
     except Exception:
         return JSONResponse({"error": "Invalid image file"}, status_code=400)
+    return img
+
+
+@app.post("/api/analyze")
+async def analyze(file: UploadFile = File(...)):
+    img = await _read_image(file)
+    if isinstance(img, JSONResponse):
+        return img
     result = analyze_image(img)
 
     # Generate despilled preview crops for each cell
@@ -81,14 +90,9 @@ async def extract(file: UploadFile = File(...), settings: str = Form(...)):
     except (json.JSONDecodeError, TypeError):
         return JSONResponse({"error": "Invalid settings JSON"}, status_code=400)
 
-    contents = await file.read()
-    if len(contents) > MAX_UPLOAD_BYTES:
-        return JSONResponse({"error": "File too large (max 50 MB)"}, status_code=413)
-    try:
-        img = Image.open(io.BytesIO(contents)).convert("RGBA")
-        img.load()
-    except Exception:
-        return JSONResponse({"error": "Invalid image file"}, status_code=400)
+    img = await _read_image(file, mode="RGBA")
+    if isinstance(img, JSONResponse):
+        return img
 
     output_size = config.get("output_size", 512)
     padding = config.get("padding", 0.15)
@@ -154,14 +158,9 @@ async def preview(file: UploadFile = File(...), settings: str = Form(...)):
     except (KeyError, TypeError, ValueError):
         return JSONResponse({"error": "Missing or non-numeric bounds (x, y, w, h required)"}, status_code=400)
 
-    contents = await file.read()
-    if len(contents) > MAX_UPLOAD_BYTES:
-        return JSONResponse({"error": "File too large (max 50 MB)"}, status_code=413)
-    try:
-        img = Image.open(io.BytesIO(contents)).convert("RGBA")
-        img.load()
-    except Exception:
-        return JSONResponse({"error": "Invalid image file"}, status_code=400)
+    img = await _read_image(file, mode="RGBA")
+    if isinstance(img, JSONResponse):
+        return img
 
     cx = max(0, min(cx, img.width - 1))
     cy = max(0, min(cy, img.height - 1))
