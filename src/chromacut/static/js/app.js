@@ -367,6 +367,7 @@ async function analyzeImage() {
         const resp = await fetch('api/analyze', { method: 'POST', body: form });
         state.analysisData = await resp.json();
 
+        state.exportNames = [];
         initCells(state.analysisData);
 
         updateDetectionUI();
@@ -455,7 +456,10 @@ function buildNameFields() {
 
         const input = document.createElement('input');
         input.type  = 'text';
-        input.value = `icon-${i + 1}`;
+        input.value = state.exportNames[i] ??= `icon-${i + 1}`;
+        input.addEventListener('input', () => {
+            state.exportNames[i] = input.value;
+        });
         input.dataset.index = i;
         if (excluded) {
             input.tabIndex = -1;

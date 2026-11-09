@@ -13,6 +13,7 @@ export const state = {
     hoveredCell: -1,        // index of hovered cell
     previewImages: [],      // HTMLImageElements from backend despill
     editedCells: [],        // deep copy of analysisData.cells, mutable
+    exportNames: [],        // per-cell names, independent of geometry undo
     activeDrag: null,       // { mode, handle, startPointer, startRect, cellIndex }
     lastSourceCrop: null,   // { x, y, w, h } for before/after toggle
     excludedCells: new Set(),   // cell indices excluded from export
@@ -31,6 +32,7 @@ export function resetState() {
     state.hoveredCell = -1;
     state.previewImages = [];
     state.editedCells = [];
+    state.exportNames = [];
     state.activeDrag = null;
     state.lastSourceCrop = null;
     state.excludedCells = new Set();
