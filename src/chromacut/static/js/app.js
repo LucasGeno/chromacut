@@ -294,17 +294,29 @@ window.addEventListener('paste', (e) => {
 });
 
 // ---- File handling ----
+let imageController;
+
 async function handleFile(file) {
+    imageController?.abort();
+    loadingOverlay.classList.add('hidden');
+    const controller = imageController = new AbortController();
+    const { signal } = controller;
     await ensureResolved();
-    if (!requireAuth()) return;
+    if (signal.aborted || !requireAuth()) return;
 
     state.sourceFile = file;
     const img = new Image();
     img.onload = () => {
+        if (signal.aborted) return;
         state.sourceImage = img;
         showWorkspace();
         drawSource();
-        analyzeImage();
+        analyzeImage(signal);
+    };
+    img.onerror = () => {
+        if (signal.aborted) return;
+        loadingOverlay.classList.add('hidden');
+        exportStatus.textContent = 'Image failed to load.';
     };
     img.src = URL.createObjectURL(file);
 }
@@ -315,6 +327,8 @@ function showWorkspace() {
 }
 
 function resetWorkspace() {
+    imageController?.abort();
+    loadingOverlay.classList.add('hidden');
     resetState();
     workspace.classList.add('hidden');
     dropZone.classList.remove('hidden');
@@ -345,12 +359,13 @@ function drawSource() {
 }
 
 // ---- Analyze via API ----
-async function analyzeImage() {
+async function analyzeImage(signal) {
     if (!state.sourceFile) return;
 
     // Gate: analyze is server-side and edge-gated. For anonymous visitors,
     // skip the call (no raw 401) and surface the "sign in to use" CTA instead.
     await ensureResolved();
+    if (signal.aborted) return;
     if (!isAuthed()) {
         loadingOverlay.classList.add('hidden');
         exportStatus.textContent = 'Sign in to analyze this image.';
@@ -364,8 +379,10 @@ async function analyzeImage() {
     form.append('file', state.sourceFile);
 
     try {
-        const resp = await fetch('api/analyze', { method: 'POST', body: form });
-        state.analysisData = await resp.json();
+        const resp = await fetch('api/analyze', { method: 'POST', body: form, signal });
+        const data = await resp.json();
+        if (signal.aborted) return;
+        state.analysisData = data;
 
         initCells(state.analysisData);
 
@@ -375,9 +392,9 @@ async function analyzeImage() {
         updatePreview(resultCanvas, paddingSlider);
         updateCellPanel();
     } catch (err) {
-        exportStatus.textContent = 'Analysis failed: ' + err.message;
+        if (!signal.aborted) exportStatus.textContent = 'Analysis failed: ' + err.message;
     } finally {
-        loadingOverlay.classList.add('hidden');
+        if (!signal.aborted) loadingOverlay.classList.add('hidden');
     }
 }
 
