@@ -81,6 +81,18 @@ def test_pad_and_resize_nearest_for_pixel_art():
     assert (reds == 255).all(), "NEAREST should preserve exact pixel values"
 
 
+def test_pad_and_resize_preserves_semitransparent_rgba():
+    rgba = (200, 100, 50, 128)
+    img = Image.new("RGBA", (2, 2), rgba)
+
+    result = pad_and_resize(img, canvas_size=8, padding_pct=0.5, resample="nearest")
+
+    assert result.getpixel((2, 2)) == rgba
+    expected = np.zeros((8, 8, 4), dtype=np.uint8)
+    expected[2:6, 2:6] = rgba
+    np.testing.assert_array_equal(np.array(result), expected)
+
+
 def test_full_pipeline_single_fixture():
     """End-to-end: load fixture -> analyze -> extract -> verify clean output."""
     from chromacut.grid import analyze_image

@@ -72,7 +72,7 @@ def pad_and_resize(
     img = img.resize((new_w, new_h), resample_method)
 
     canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-    canvas.paste(img, ((canvas_size - new_w) // 2, (canvas_size - new_h) // 2), img)
+    canvas.paste(img, ((canvas_size - new_w) // 2, (canvas_size - new_h) // 2))
     return canvas
 
 
