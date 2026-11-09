@@ -298,6 +298,7 @@ let imageController;
 
 async function handleFile(file) {
     imageController?.abort();
+    loadingOverlay.classList.add('hidden');
     const controller = imageController = new AbortController();
     const { signal } = controller;
     await ensureResolved();
@@ -311,6 +312,11 @@ async function handleFile(file) {
         showWorkspace();
         drawSource();
         analyzeImage(signal);
+    };
+    img.onerror = () => {
+        if (signal.aborted) return;
+        loadingOverlay.classList.add('hidden');
+        exportStatus.textContent = 'Image failed to load.';
     };
     img.src = URL.createObjectURL(file);
 }

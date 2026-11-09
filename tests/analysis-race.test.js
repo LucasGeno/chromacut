@@ -24,7 +24,7 @@ const $ = selector => {
 globalThis.document = { querySelector: $, querySelectorAll: () => [],
     createElement: element, addEventListener: noop, body: element(),
     documentElement: element(), getElementById: id => $(`#${id}`) };
-globalThis.window = { addEventListener: noop, location: { hostname: 'localhost' } };
+globalThis.window = { ...element(), location: { hostname: 'localhost' } };
 globalThis.getComputedStyle = () => ({ getPropertyValue: () => '' });
 const images = [], requests = [];
 globalThis.Image = class { width = 2; height = 2; constructor() { images.push(this); } };
@@ -48,6 +48,38 @@ const select = async name => {
 };
 const data = mode => ({ mode, key_color: [0, 255, 0], cells: [{ x: 0, y: 0, w: 2, h: 2 }] });
 afterAll(() => Object.assign(globalThis, saved));
+
+test('pasting a corrupt replacement clears analysis loading and reports decode failure', async () => {
+    $('#btn-new').events.click();
+    const a = await select('A');
+    a.onload(); await flush();
+    const old = requests.at(-1);
+    expect($('#loading-overlay').classList.contains('hidden')).toBe(false);
+
+    window.events.paste({ preventDefault: noop, clipboardData: { items: [{
+        type: 'image/png',
+        getAsFile: () => new File(['corrupt'], 'B', { type: 'image/png' }),
+    }] } });
+    await flush();
+    const b = images.at(-1);
+    expect(old.options.signal.aborted).toBe(true);
+    expect($('#loading-overlay').classList.contains('hidden')).toBe(true);
+    b.onerror?.();
+    old.response.resolve(); old.body.resolve(data('A')); await flush();
+    expect($('#loading-overlay').classList.contains('hidden')).toBe(true);
+    expect($('#export-status').textContent).toBe('Image failed to load.');
+    expect(state.analysisData).toBe(null);
+
+    const c = await select('C');
+    c.onload(); await flush();
+    b.onerror?.();
+    expect($('#loading-overlay').classList.contains('hidden')).toBe(false);
+    expect($('#export-status').textContent).toBe('');
+    const current = requests.at(-1);
+    current.response.resolve(); current.body.resolve(data('C')); await flush();
+    expect(state.analysisData.mode).toBe('C');
+    expect($('#loading-overlay').classList.contains('hidden')).toBe(true);
+});
 
 for (const action of ['replace', 'reset']) {
     for (const stage of ['image', 'response', 'body']) {
