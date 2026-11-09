@@ -79,6 +79,7 @@ export function snapshotCells() {
 export function restoreCells(snapshot) {
     state.editedCells = snapshot.cells.map(c => ({ ...c }));
     state.excludedCells = new Set(snapshot.excludedCells);
+    state.previewImages = [];
 }
 
 const UNDO_CAP = 50;

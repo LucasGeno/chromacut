@@ -214,6 +214,8 @@ export async function refreshCellPreview(cellIndex, sourceFile) {
 
         const img = new Image();
         img.onload = () => {
+            // Undo/redo replaces cell objects; ignore previews from before restoration.
+            if (state.editedCells[cellIndex] !== cell) return;
             state.previewImages[cellIndex] = img;
             // Caller must supply dom refs — use module-level dom set by setupInteraction
             updatePreview(_interactionDom.resultCanvas, _interactionDom.paddingSlider);
@@ -400,6 +402,7 @@ export function setupInteraction(dom) {
             if (changed) {
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
+                refreshCellPreview(state.selectedCell, state.sourceFile);
                 if (updateCellPanel) updateCellPanel();
                 if (rebuildUI) rebuildUI();
             }
