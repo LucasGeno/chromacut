@@ -433,6 +433,7 @@ function buildCellThumbnails() {
             thumb.classList.add('active');
             drawOverlay(overlayCanvas);
             updatePreview(resultCanvas, paddingSlider);
+            if (!state.previewImages[i]) refreshCellPreview(i, state.sourceFile);
             updateCellPanel();
         });
         cellThumbnails.appendChild(thumb);

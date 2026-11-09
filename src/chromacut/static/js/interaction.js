@@ -194,18 +194,20 @@ export async function refreshCellPreview(cellIndex, sourceFile) {
     if (!sourceFile || cellIndex < 0 || cellIndex >= state.editedCells.length) return;
 
     if (_previewAbortController) _previewAbortController.abort();
-    _previewAbortController = new AbortController();
+    const controller = new AbortController();
+    _previewAbortController = controller;
 
     const cell = state.editedCells[cellIndex];
+    const bounds = { x: cell.x, y: cell.y, w: cell.w, h: cell.h };
     const form = new FormData();
     form.append('file', sourceFile);
-    form.append('settings', JSON.stringify({ x: cell.x, y: cell.y, w: cell.w, h: cell.h }));
+    form.append('settings', JSON.stringify(bounds));
 
     try {
         const resp = await fetch('api/preview', {
             method: 'POST',
             body: form,
-            signal: _previewAbortController.signal,
+            signal: controller.signal,
         });
         if (!resp.ok) return;
         const data = await resp.json();
@@ -214,6 +216,9 @@ export async function refreshCellPreview(cellIndex, sourceFile) {
 
         const img = new Image();
         img.onload = () => {
+            // Fetch abort cannot cancel image loading; reject superseded requests and edits.
+            if (controller !== _previewAbortController || state.editedCells[cellIndex] !== cell) return;
+            if (cell.x !== bounds.x || cell.y !== bounds.y || cell.w !== bounds.w || cell.h !== bounds.h) return;
             state.previewImages[cellIndex] = img;
             // Caller must supply dom refs — use module-level dom set by setupInteraction
             updatePreview(_interactionDom.resultCanvas, _interactionDom.paddingSlider);
@@ -301,6 +306,7 @@ export function setupInteraction(dom) {
         state.selectedCell = hit.cellIndex;
         drawOverlay(overlayCanvas);
         updatePreview(resultCanvas, paddingSlider);
+        if (!state.previewImages[state.selectedCell]) refreshCellPreview(state.selectedCell, state.sourceFile);
         updateCellPanel();
 
         document.querySelectorAll('.cell-thumb').forEach((t, i) => {
@@ -400,6 +406,7 @@ export function setupInteraction(dom) {
             if (changed) {
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
+                refreshCellPreview(state.selectedCell, state.sourceFile);
                 if (updateCellPanel) updateCellPanel();
                 if (rebuildUI) rebuildUI();
             }
@@ -467,6 +474,7 @@ export function setupInteraction(dom) {
                 state.selectedCell = idx;
                 drawOverlay(overlayCanvas);
                 updatePreview(resultCanvas, paddingSlider);
+                if (!state.previewImages[idx]) refreshCellPreview(idx, state.sourceFile);
                 if (updateCellPanel) updateCellPanel();
                 document.querySelectorAll('.cell-thumb').forEach((t, i) => {
                     t.classList.toggle('active', i === state.selectedCell);
