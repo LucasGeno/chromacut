@@ -8,7 +8,9 @@ import pytest
 import numpy as np
 from PIL import Image
 from fastapi.testclient import TestClient
+from starlette.datastructures import UploadFile
 
+import chromacut.app as api
 from chromacut.app import app
 
 
@@ -26,6 +28,50 @@ def _make_test_image():
     img.save(buf, "PNG")
     buf.seek(0)
     return buf
+
+
+@pytest.mark.parametrize("route", ["analyze", "extract", "preview"])
+@pytest.mark.parametrize("extra_bytes", [0, 1, 100])
+def test_upload_read_is_bounded(monkeypatch, route, extra_bytes):
+    contents = _make_test_image().getvalue()
+    limit = len(contents)
+    monkeypatch.setattr(api, "MAX_UPLOAD_BYTES", limit)
+    bytes_read = []
+    original_read = UploadFile.read
+
+    async def track_read(self, size=-1):
+        data = await original_read(self, size)
+        bytes_read.append(len(data))
+        return data
+
+    monkeypatch.setattr(UploadFile, "read", track_read)
+    resp = client.post(
+        f"/api/{route}",
+        files={"file": ("test.png", contents + b"x" * extra_bytes, "image/png")},
+        data={"settings": json.dumps({"x": 0, "y": 0, "w": 100, "h": 100})},
+    )
+    assert resp.status_code == (413 if extra_bytes else 200)
+    if extra_bytes:
+        assert resp.json() == {"error": "File too large (max 50 MB)"}
+    assert bytes_read
+    assert sum(bytes_read) <= limit + 1
+
+
+@pytest.mark.parametrize("route", ["analyze", "extract", "preview"])
+@pytest.mark.parametrize("pixel_limit", [None, 7500, 4000])
+@pytest.mark.filterwarnings("error::PIL.Image.DecompressionBombWarning")
+def test_upload_rejects_invalid_images(monkeypatch, route, pixel_limit):
+    contents = _make_test_image().getvalue() if pixel_limit else b"not an image"
+    if pixel_limit:
+        # 10,000 pixels trigger Pillow's warning or error, respectively.
+        monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", pixel_limit)
+    resp = client.post(
+        f"/api/{route}",
+        files={"file": ("test.png", contents, "image/png")},
+        data={"settings": json.dumps({"x": 0, "y": 0, "w": 100, "h": 100})},
+    )
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "Invalid image file"}
 
 
 def test_index_returns_html():
