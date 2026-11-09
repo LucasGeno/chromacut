@@ -55,6 +55,22 @@ def test_pad_and_resize_output_size():
     assert result.size == (512, 512)
 
 
+@pytest.mark.parametrize("resample", ["lanczos", "nearest"])
+@pytest.mark.parametrize(
+    "size, expected_bounds",
+    [((1, 1000), (255, 38, 256, 473)), ((1000, 1), (38, 255, 473, 256))],
+)
+def test_pad_and_resize_preserves_thin_content(size, expected_bounds, resample):
+    img = Image.new("RGBA", size, (200, 100, 50, 255))
+
+    result = pad_and_resize(img, canvas_size=512, padding_pct=0.15, resample=resample)
+
+    assert result.size == (512, 512)
+    assert result.mode == "RGBA"
+    assert result.getchannel("A").getbbox() == expected_bounds
+    assert result.getpixel(expected_bounds[:2]) == (200, 100, 50, 255)
+
+
 def test_pad_and_resize_centers_content():
     img = Image.new("RGBA", (50, 50), (0, 0, 0, 0))
     # Draw a 10x10 block in the corner
