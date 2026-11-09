@@ -66,7 +66,7 @@ def pad_and_resize(
     inner = int(canvas_size * (1 - padding_pct))
     w, h = img.size
     scale = min(inner / w, inner / h)
-    new_w, new_h = int(w * scale), int(h * scale)
+    new_w, new_h = max(1, int(w * scale)), max(1, int(h * scale))
 
     resample_method = Image.NEAREST if resample == "nearest" else Image.LANCZOS
     img = img.resize((new_w, new_h), resample_method)
