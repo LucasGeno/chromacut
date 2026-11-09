@@ -77,6 +77,35 @@ test('undo and redo replace the edited crop preview, using the restored crop whi
     }
 });
 
+test.each(['edited bounds', 'newer preview', 'newer preview at original bounds'])(
+    'late undo image cannot overwrite %s', async (scenario) => {
+        const { images, draws, handlers, noop } = setupPreviewTest();
+        state.editedCells[0].x = 10;
+        pushUndo();
+        handlers.keydown({ code: 'KeyZ', ctrlKey: true, target: { tagName: 'BODY' }, preventDefault: noop });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const undoImage = images.at(-1);
+        expect(undoImage.crop.x).toBe(0);
+
+        // Edits mutate the restored cell without replacing its object identity.
+        state.editedCells[0].x = 5;
+        let expectedPreview = state.previewImages[0];
+        if (scenario !== 'edited bounds') {
+            if (scenario === 'newer preview at original bounds') state.editedCells[0].x = 0;
+            await refreshCellPreview(0, state.sourceFile);
+            expectedPreview = images.at(-1);
+            expectedPreview.onload();
+            expect(expectedPreview.crop.x).toBe(state.editedCells[0].x);
+        }
+        const drawCount = draws.length;
+        const displayedCrop = draws.at(-1);
+        undoImage.onload();
+        expect(state.previewImages[0]).toBe(expectedPreview);
+        expect(draws).toHaveLength(drawCount);
+        expect(draws.at(-1)).toBe(displayedCrop);
+    },
+);
+
 test.each(['keyboard', 'canvas'])('multi-cell undo preserves valid previews and refreshes missing ones on %s selection', async (selection) => {
     const { images, requests, draws, handlers, noop } = setupPreviewTest([
         { x: 0, y: 0, w: 20, h: 20 }, { x: 50, y: 50, w: 20, h: 20 },
