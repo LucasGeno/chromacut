@@ -1,0 +1,95 @@
+# Build the chromacut container in CI and publish it to GHCR, so the 1 GB
+# lucas-platform droplet pulls a digest-pinned image instead of building it
+# (lucas-platform docs/work/public-surface-rework ticket 09).
+#
+# Pull requests build and smoke-test the image without pushing. A push to main
+# also publishes ghcr.io/lucasgeno/chromacut:sha-<commit> and :main, and writes
+# the digest to the job summary; lucas-platform pins that digest in
+# compose/chromacut/compose.yml. Uses only the job's GITHUB_TOKEN.
+name: image
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "src/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "README.md"
+      - ".github/workflows/image.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/lucasgeno/chromacut
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The droplet is linux/amd64. Load locally first so the smoke test runs
+      # the exact image that is pushed afterwards.
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          tags: chromacut:ci
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      # Same probe as the lucas-platform compose healthcheck: GET / answers 200.
+      - name: Smoke test
+        run: |
+          docker run -d --name chromacut-smoke -p 6100:6100 chromacut:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:6100/; then
+              docker rm -f chromacut-smoke >/dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs chromacut-smoke
+          exit 1
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Push the exact image the smoke test ran, not a rebuild.
+      - name: Push
+        if: github.event_name != 'pull_request'
+        run: |
+          for tag in "sha-${GITHUB_SHA}" main; do
+            docker tag chromacut:ci "${IMAGE}:${tag}"
+            docker push --quiet "${IMAGE}:${tag}"
+          done
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:sha-${GITHUB_SHA}")
+          {
+            echo "Pin in lucas-platform compose/chromacut/compose.yml:"
+            echo
+            echo "\`image: ${digest}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
